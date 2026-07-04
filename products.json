@@ -1,23 +1,9 @@
 [
     {
-        "sku": "ABC001",
-        "name": "Gaming Mouse",
+        "sku": "A1",
+        "name": "Burr",
         "price": 49.99,
         "image": "images/mouse.jpg",
         "description": "High precision RGB gaming mouse."
-    },
-    {
-        "sku": "ABC002",
-        "name": "Mechanical Keyboard",
-        "price": 99.99,
-        "image": "images/keyboard.jpg",
-        "description": "Mechanical keyboard with RGB lighting."
-    },
-    {
-        "sku": "ABC003",
-        "name": "HDMI Cable",
-        "price": 14.99,
-        "image": "images/hdmi.jpg",
-        "description": "2 metre HDMI 2.1 cable."
     }
 ]
