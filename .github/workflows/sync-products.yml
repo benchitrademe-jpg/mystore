@@ -1,1 +1,48 @@
+name: Sync Products from Google Sheets
 
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # runs every 10 minutes
+  workflow_dispatch:        # allows manual run button
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download CSV + convert to JSON
+        run: |
+          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv" > data.csv
+
+          node -e "
+          const fs = require('fs');
+
+          const csv = fs.readFileSync('data.csv', 'utf8').trim().split('\n');
+          const headers = csv[0].split(',');
+
+          const products = csv.slice(1).map(row => {
+            const values = row.split(',');
+
+            return {
+              sku: values[0],
+              name: values[1],
+              price: parseFloat(values[2]),
+              stock: parseInt(values[3]),
+              image: values[4],
+              description: values[5]
+            };
+          });
+
+          fs.writeFileSync('products.json', JSON.stringify(products, null, 2));
+          "
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add products.json
+          git commit -m "Auto update products from Google Sheets" || exit 0
+          git push
