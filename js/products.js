@@ -1,149 +1,174 @@
+// ===========================
+// LIVE PRODUCTS (Google Sheets)
+// ===========================
 
-// ===========================
-// Products Page
-// ===========================
+const SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv";
 
 let allProducts = [];
 
 // ===========================
-// Load products from products.json
+// LOAD DATA FROM GOOGLE SHEETS
 // ===========================
 
-fetch("products.json")
-    .then(response => response.json())
-    .then(data => {
+fetch(SHEET_URL)
+  .then(res => res.text())
+  .then(csvText => {
 
-        console.log("RAW DATA:", data);
+    const products = parseCSV(csvText);
 
-        // ✅ ALWAYS extract array safely
-        const products = Array.isArray(data)
-            ? data
-            : data.products;
+    console.log("LIVE PRODUCTS:", products);
 
-        if (!Array.isArray(products)) {
-            console.error("❌ Products is not an array:", products);
-            return;
-        }
+    allProducts = products;
 
-        allProducts = products;
+    populateCategories(products);
+    displayProducts(products);
 
-        console.log("EXTRACTED PRODUCTS:", allProducts);
+    setupListeners();
 
-        populateCategories(allProducts);
-        displayProducts(allProducts);
+  })
+  .catch(err => console.error("❌ Sheet load error:", err));
 
-        // Search box
-        const searchBox = document.getElementById("search");
 
-        if (searchBox) {
-            searchBox.addEventListener("input", filterProducts);
-        }
+// ===========================
+// CSV PARSER (simple but reliable)
+// ===========================
 
-        // Category dropdown
-        const categoryBox = document.getElementById("category");
+function parseCSV(csv) {
 
-        if (categoryBox) {
-            categoryBox.addEventListener("change", filterProducts);
-        }
+  const lines = csv.trim().split("\n");
 
-    })
-    .catch(err => {
-        console.error("❌ Failed to load products.json:", err);
+  const headers = lines[0].split(",").map(h => h.trim());
+
+  return lines.slice(1).map(line => {
+
+    const values = line.split(",").map(v => v.trim());
+
+    let obj = {};
+
+    headers.forEach((h, i) => {
+      obj[h] = values[i] || "";
     });
 
+    return {
+      sku: obj.sku || "",
+      name: obj.name || "",
+      price: Number(obj.price || 0),
+      stock: Number(obj.stock || 0),
+      image: obj.image || "",
+      description: obj.description || "",
+      category: obj.category || "Uncategorized"
+    };
+  });
+}
+
 
 // ===========================
-// Display Products
+// DISPLAY PRODUCTS
 // ===========================
 
 function displayProducts(products) {
 
-    console.log("RENDERING PRODUCTS:", products);
+  console.log("RENDERING:", products);
 
-    const container = document.getElementById("product-list");
+  const container = document.getElementById("product-list");
 
-    if (!container) {
-        console.error("❌ product-list container not found in HTML");
-        return;
-    }
+  if (!container) {
+    console.error("❌ Missing #product-list in HTML");
+    return;
+  }
 
-    if (!Array.isArray(products)) {
-        console.error("❌ Expected array but got:", products);
-        return;
-    }
+  container.innerHTML = "";
 
-    container.innerHTML = "";
+  products.forEach(product => {
 
-    products.forEach(product => {
+    const div = document.createElement("div");
+    div.className = "product-card";
 
-        const div = document.createElement("div");
+    div.innerHTML = `
+      <img src="${product.image}" alt="${product.name}" />
+      <h3>${product.name}</h3>
+      <p>${product.description}</p>
+      <p><strong>$${product.price}</strong></p>
+      <p>Stock: ${product.stock}</p>
+    `;
 
-        div.className = "product-card";
-
-        div.innerHTML = `
-            <img src="${product.image}" alt="${product.name}" />
-            <h3>${product.name}</h3>
-            <p>${product.description}</p>
-            <p><strong>$${product.price}</strong></p>
-            <p>Stock: ${product.stock}</p>
-        `;
-
-        container.appendChild(div);
-    });
+    container.appendChild(div);
+  });
 }
 
 
 // ===========================
-// Populate Category Dropdown
+// CATEGORY DROPDOWN
 // ===========================
 
 function populateCategories(products) {
 
-    const categorySelect = document.getElementById("category");
+  const categorySelect = document.getElementById("category");
 
-    if (!categorySelect) return;
+  if (!categorySelect) return;
 
-    const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+  const categories = [
+    ...new Set(products.map(p => p.category))
+  ].filter(Boolean);
 
-    categories.sort();
+  categorySelect.innerHTML = `<option value="All">All</option>`;
 
-    categories.forEach(category => {
+  categories.sort().forEach(cat => {
 
-        const option = document.createElement("option");
+    const option = document.createElement("option");
 
-        option.value = category;
-        option.textContent = category;
+    option.value = cat;
+    option.textContent = cat;
 
-        categorySelect.appendChild(option);
-    });
+    categorySelect.appendChild(option);
+  });
 }
 
 
 // ===========================
-// Search & Filter
+// SEARCH + FILTER
 // ===========================
 
 function filterProducts() {
 
-    const searchEl = document.getElementById("search");
-    const categoryEl = document.getElementById("category");
+  const searchEl = document.getElementById("search");
+  const categoryEl = document.getElementById("category");
 
-    const searchText = searchEl ? searchEl.value.toLowerCase() : "";
-    const category = categoryEl ? categoryEl.value : "All";
+  const search = searchEl ? searchEl.value.toLowerCase() : "";
+  const category = categoryEl ? categoryEl.value : "All";
 
-    const filtered = allProducts.filter(product => {
+  const filtered = allProducts.filter(p => {
 
-        const matchesSearch =
-            product.name.toLowerCase().includes(searchText) ||
-            product.description.toLowerCase().includes(searchText) ||
-            product.sku.toLowerCase().includes(searchText);
+    const matchesSearch =
+      p.name.toLowerCase().includes(search) ||
+      p.description.toLowerCase().includes(search) ||
+      p.sku.toLowerCase().includes(search);
 
-        const matchesCategory =
-            category === "All" ||
-            product.category === category;
+    const matchesCategory =
+      category === "All" || p.category === category;
 
-        return matchesSearch && matchesCategory;
-    });
+    return matchesSearch && matchesCategory;
+  });
 
-    displayProducts(filtered);
+  displayProducts(filtered);
+}
+
+
+// ===========================
+// EVENT LISTENERS
+// ===========================
+
+function setupListeners() {
+
+  const searchBox = document.getElementById("search");
+  const categoryBox = document.getElementById("category");
+
+  if (searchBox) {
+    searchBox.addEventListener("input", filterProducts);
+  }
+
+  if (categoryBox) {
+    categoryBox.addEventListener("change", filterProducts);
+  }
 }
