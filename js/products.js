@@ -2,6 +2,10 @@
 // LIVE PRODUCTS (Google Sheets)
 // ===========================
 
+// ===========================
+// LIVE PRODUCTS (Google Sheets)
+// ===========================
+
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv";
 
@@ -9,20 +13,28 @@ let allProducts = [];
 
 console.log("🚀 products.js loaded");
 
+// Build a fresh URL every page load
+const fetchUrl = SHEET_URL + "&cache=" + Date.now();
+
+console.log("Fetching URL:");
+console.log(fetchUrl);
+
 // ===========================
 // LOAD DATA FROM GOOGLE SHEETS
 // ===========================
 
-fetch(SHEET_URL + "&cache=" + Date.now(), {
+fetch(fetchUrl, {
   cache: "no-store"
 })
-  .then(res => {
+  .then(response => {
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    console.log("HTTP Status:", response.status);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
 
-    return res.text();
+    return response.text();
 
   })
   .then(csvText => {
@@ -35,20 +47,23 @@ fetch(SHEET_URL + "&cache=" + Date.now(), {
     console.log("========== PARSED PRODUCTS ==========");
     console.table(products);
 
+    console.log("Product count:", products.length);
     console.log("Loaded at:", new Date().toISOString());
 
     allProducts = products;
 
-    populateCategories(products);
-    displayProducts(products);
+    populateCategories(allProducts);
+    displayProducts(allProducts);
 
     setupListeners();
 
   })
-  .catch(err => {
-    console.error("❌ Sheet load error:", err);
-  });
+  .catch(error => {
 
+    console.error("❌ Error loading Google Sheet");
+    console.error(error);
+
+  });
 
 // ===========================
 // CSV PARSER
