@@ -42,15 +42,12 @@ fetch("products.json")
 
 function displayProducts(products) {
 
-    if (!Array.isArray(products)) {
-        console.error("Expected array but got:", products);
-        return;
-    }
+    console.log("RENDERING PRODUCTS:", products);
 
     const container = document.getElementById("product-list");
 
     if (!container) {
-        console.error("Missing #product-list in HTML");
+        console.error("❌ product-list container not found");
         return;
     }
 
@@ -58,21 +55,23 @@ function displayProducts(products) {
 
     products.forEach(product => {
 
+        console.log("Rendering:", product);
+
         const div = document.createElement("div");
-        div.className = "product";
 
         div.innerHTML = `
-            <img src="${product.image}" />
-            <h3>${product.name}</h3>
-            <p>${product.description}</p>
-            <p>$${product.price}</p>
-            <p>Stock: ${product.stock}</p>
+            <div class="product-card">
+                <img src="${product.image}" alt="${product.name}" />
+                <h3>${product.name}</h3>
+                <p>${product.description}</p>
+                <p>$${product.price}</p>
+                <p>Stock: ${product.stock}</p>
+            </div>
         `;
 
-        container.appendChild(div);
+        container.appendChild(div); // 🔥 THIS IS THE CRITICAL LINE
     });
 }
-
 // ===========================
 // Populate Category Dropdown
 // ===========================
