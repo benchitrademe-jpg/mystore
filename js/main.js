@@ -8,16 +8,14 @@ function saveCart() {
 }
 
 // ===========================
-// UPDATE CART COUNT (SAFE)
+// UPDATE CART COUNT
 // ===========================
 function updateCartCount() {
 
     const cartLink = document.querySelector('#cart-link');
-
     if (!cartLink) return;
 
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
     cartLink.textContent = `Cart 🛒 (${totalItems})`;
 }
 
@@ -42,7 +40,6 @@ window.addToCart = function(product) {
 
     saveCart();
     updateCartCount();
-
     showPopup(product.name);
 };
 
@@ -79,6 +76,37 @@ function showPopup(name) {
 }
 
 // ===========================
+// CART PAGE RENDER (THIS WAS MISSING)
+// ===========================
+function renderCart() {
+
+    const container = document.getElementById("cart-items");
+    if (!container) return; // only runs on cart page
+
+    container.innerHTML = "";
+
+    if (cart.length === 0) {
+        container.innerHTML = "<p>Your cart is empty 🛒</p>";
+        return;
+    }
+
+    cart.forEach(item => {
+
+        const div = document.createElement("div");
+        div.className = "cart-item";
+
+        div.innerHTML = `
+            <h3>${item.name}</h3>
+            <p>$${item.price} × ${item.quantity}</p>
+            <p><strong>$${(item.price * item.quantity).toFixed(2)}</strong></p>
+        `;
+
+        container.appendChild(div);
+    });
+}
+
+// ===========================
 // INIT
 // ===========================
 updateCartCount();
+document.addEventListener("DOMContentLoaded", renderCart);
