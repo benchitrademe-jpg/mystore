@@ -105,6 +105,9 @@ function displayProducts(products) {
 
     const btn = document.createElement("button");
     btn.textContent = "Add to Cart";
+    btn.className = "add-to-cart-btn";
+
+    btn.addEventListener("click", () => addToCart(product));
 
     // THIS is the important line
     btn.addEventListener("click", () => addToCart(product));
