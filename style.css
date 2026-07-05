@@ -282,3 +282,26 @@ nav a:hover {
     text-align: right;
     font-size: 24px;
 }
+
+.add-to-cart-btn {
+    margin-top: 15px;
+    width: 100%;
+
+    background: orange;
+    color: white;
+
+    border: none;
+    padding: 12px;
+
+    border-radius: 10px;
+
+    font-size: 16px;
+    cursor: pointer;
+
+    transition: 0.2s ease;
+}
+
+.add-to-cart-btn:hover {
+    background: darkorange;
+    transform: translateY(-2px);
+}
