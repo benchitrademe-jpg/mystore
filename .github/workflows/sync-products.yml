@@ -1,5 +1,8 @@
 name: Sync Products from Google Sheets
 
+permissions:
+  contents: write
+
 on:
   schedule:
     - cron: "*/10 * * * *"   # runs every 10 minutes
