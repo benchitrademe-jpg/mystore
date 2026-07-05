@@ -40,57 +40,23 @@ fetch("products.json")
 // Display Products
 // ===========================
 
-function displayProducts(products) {
+function displayProducts(data) {
 
-    const productList = document.getElementById("product-list");
+  // ALWAYS normalize to array
+  const products = Array.isArray(data) ? data : data.products;
 
-    if (!productList) return;
+  console.log("Products received:", products);
 
-    productList.innerHTML = "";
+  if (!Array.isArray(products)) {
+    console.error("Products is not an array:", products);
+    return;
+  }
 
-    if (products.length === 0) {
+  products.forEach(product => {
+    console.log(product);
 
-        productList.innerHTML = "<h2>No products found.</h2>";
-
-        return;
-
-    }
-
-    products.forEach(product => {
-
-        const card = document.createElement("div");
-
-        card.className = "product-card";
-
-        card.innerHTML = `
-
-            <img
-                class="product-image"
-                src="${product.image}"
-                alt="${product.name}"
-                onerror="this.src='https://placehold.co/400x300?text=No+Image'"
-            >
-
-            <h2>${product.name}</h2>
-
-            <p>${product.description}</p>
-
-            <h3>$${product.price.toFixed(2)}</h3>
-
-            <button>Add to Cart</button>
-
-        `;
-
-        card.querySelector("button").addEventListener("click", () => {
-
-            addToCart(product);
-
-        });
-
-        productList.appendChild(card);
-
-    });
-
+    // your existing render code here
+  });
 }
 
 
