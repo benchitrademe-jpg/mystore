@@ -16,8 +16,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Show CSV content
-        run: cat data.csv
+
 
       - name: Setup Node
         uses: actions/setup-node@v4
