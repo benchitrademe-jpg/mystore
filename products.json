@@ -1,14 +1,22 @@
 {
-  "updatedAt": "2026-07-05T04:33:52.663Z",
-  "productCount": 1,
+  "updatedAt": "2026-07-05T07:46:31.016Z",
+  "productCount": 2,
   "products": [
     {
-      "sku": "SKU001",
-      "name": "Blue Hoodie",
-      "price": 59.99,
-      "stock": 12,
+      "sku": "A001",
+      "name": "adsc",
+      "price": 20,
+      "stock": 2,
       "image": "sad",
       "description": "cool"
+    },
+    {
+      "sku": "A002",
+      "name": "Burr set",
+      "price": 40,
+      "stock": 3,
+      "image": "a",
+      "description": "useful"
     }
   ]
 }
