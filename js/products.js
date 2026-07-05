@@ -7,17 +7,35 @@ const SHEET_URL =
 
 let allProducts = [];
 
+console.log("🚀 products.js loaded");
+
 // ===========================
 // LOAD DATA FROM GOOGLE SHEETS
 // ===========================
 
-fetch(SHEET_URL + "&cache=" + Date.now())
-  .then(res => res.text())
+fetch(SHEET_URL + "&cache=" + Date.now(), {
+  cache: "no-store"
+})
+  .then(res => {
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    return res.text();
+
+  })
   .then(csvText => {
+
+    console.log("========== RAW CSV ==========");
+    console.log(csvText);
 
     const products = parseCSV(csvText);
 
-    console.log("LIVE PRODUCTS:", products);
+    console.log("========== PARSED PRODUCTS ==========");
+    console.table(products);
+
+    console.log("Loaded at:", new Date().toISOString());
 
     allProducts = products;
 
@@ -27,16 +45,18 @@ fetch(SHEET_URL + "&cache=" + Date.now())
     setupListeners();
 
   })
-  .catch(err => console.error("❌ Sheet load error:", err));
+  .catch(err => {
+    console.error("❌ Sheet load error:", err);
+  });
 
 
 // ===========================
-// CSV PARSER (simple but reliable)
+// CSV PARSER
 // ===========================
 
 function parseCSV(csv) {
 
-  const lines = csv.trim().split("\n");
+  const lines = csv.trim().split(/\r?\n/);
 
   const headers = lines[0].split(",").map(h => h.trim());
 
@@ -59,7 +79,9 @@ function parseCSV(csv) {
       description: obj.description || "",
       category: obj.category || "Uncategorized"
     };
+
   });
+
 }
 
 
@@ -69,12 +91,12 @@ function parseCSV(csv) {
 
 function displayProducts(products) {
 
-  console.log("RENDERING:", products);
+  console.log("Rendering", products.length, "products");
 
   const container = document.getElementById("product-list");
 
   if (!container) {
-    console.error("❌ Missing #product-list in HTML");
+    console.error("❌ Missing #product-list");
     return;
   }
 
@@ -86,15 +108,17 @@ function displayProducts(products) {
     div.className = "product-card";
 
     div.innerHTML = `
-      <img src="${product.image}" alt="${product.name}" />
+      <img src="${product.image}" alt="${product.name}">
       <h3>${product.name}</h3>
       <p>${product.description}</p>
-      <p><strong>$${product.price}</strong></p>
+      <p><strong>$${product.price.toFixed(2)}</strong></p>
       <p>Stock: ${product.stock}</p>
     `;
 
     container.appendChild(div);
+
   });
+
 }
 
 
@@ -108,21 +132,23 @@ function populateCategories(products) {
 
   if (!categorySelect) return;
 
-  const categories = [
-    ...new Set(products.map(p => p.category))
-  ].filter(Boolean);
-
   categorySelect.innerHTML = `<option value="All">All</option>`;
 
-  categories.sort().forEach(cat => {
+  const categories = [...new Set(products.map(p => p.category))]
+    .filter(Boolean)
+    .sort();
+
+  categories.forEach(category => {
 
     const option = document.createElement("option");
 
-    option.value = cat;
-    option.textContent = cat;
+    option.value = category;
+    option.textContent = category;
 
     categorySelect.appendChild(option);
+
   });
+
 }
 
 
@@ -132,26 +158,29 @@ function populateCategories(products) {
 
 function filterProducts() {
 
-  const searchEl = document.getElementById("search");
-  const categoryEl = document.getElementById("category");
+  const search =
+    document.getElementById("search")?.value.toLowerCase() || "";
 
-  const search = searchEl ? searchEl.value.toLowerCase() : "";
-  const category = categoryEl ? categoryEl.value : "All";
+  const category =
+    document.getElementById("category")?.value || "All";
 
-  const filtered = allProducts.filter(p => {
+  const filtered = allProducts.filter(product => {
 
     const matchesSearch =
-      p.name.toLowerCase().includes(search) ||
-      p.description.toLowerCase().includes(search) ||
-      p.sku.toLowerCase().includes(search);
+      product.name.toLowerCase().includes(search) ||
+      product.description.toLowerCase().includes(search) ||
+      product.sku.toLowerCase().includes(search);
 
     const matchesCategory =
-      category === "All" || p.category === category;
+      category === "All" ||
+      product.category === category;
 
     return matchesSearch && matchesCategory;
+
   });
 
   displayProducts(filtered);
+
 }
 
 
@@ -171,4 +200,5 @@ function setupListeners() {
   if (categoryBox) {
     categoryBox.addEventListener("change", filterProducts);
   }
+
 }
