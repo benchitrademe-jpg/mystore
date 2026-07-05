@@ -1,9 +1,18 @@
 [
-    {
-        "sku": "A1",
-        "name": "Burr",
-        "price": 49.99,
-        "image": "images/mouse.jpg",
-        "description": "High precision RGB gaming mouse."
-    }
+  {
+    "sku": "",
+    "name": "sku",
+    "price": null,
+    "stock": null,
+    "image": "stock",
+    "description": "image"
+  },
+  {
+    "sku": "",
+    "name": "SKU001",
+    "price": null,
+    "stock": 59,
+    "image": "12",
+    "description": "images/blue-hoodie.jpg"
+  }
 ]
