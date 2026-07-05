@@ -29,9 +29,11 @@ jobs:
 
       - name: Download Google Sheet CSV
         run: |
-          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv" \
-            -H "Accept: text/csv" \
-            -o data.csv
+          pwd
+          ls -la
+          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv" -o data.csv
+          ls -la
+          cat data.csv
 
       - name: Build products.json
         run: node convert-products.js
