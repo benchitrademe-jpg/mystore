@@ -81,7 +81,7 @@ function showPopup(name) {
 function renderCart() {
 
     const container = document.getElementById("cart-items");
-    if (!container) return; // only runs on cart page
+    if (!container) return;
 
     container.innerHTML = "";
 
@@ -90,19 +90,29 @@ function renderCart() {
         return;
     }
 
-    cart.forEach(item => {
+    cart.forEach((item, index) => {
 
         const div = document.createElement("div");
         div.className = "cart-item";
 
         div.innerHTML = `
-            <h3>${item.name}</h3>
-            <p>$${item.price} × ${item.quantity}</p>
-            <p><strong>$${(item.price * item.quantity).toFixed(2)}</strong></p>
+            <div>
+                <h3>${item.name}</h3>
+                <p>$${item.price}</p>
+                <p><strong>Subtotal: $${(item.price * item.quantity).toFixed(2)}</strong></p>
+            </div>
+
+            <div class="qty-controls">
+                <button onclick="decreaseQty(${index})">−</button>
+                <span>${item.quantity}</span>
+                <button onclick="increaseQty(${index})">+</button>
+            </div>
         `;
 
         container.appendChild(div);
     });
+
+    saveCart();
 }
 
 // ===========================
