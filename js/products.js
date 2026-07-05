@@ -109,9 +109,6 @@ function displayProducts(products) {
 
     btn.addEventListener("click", () => addToCart(product));
 
-    // THIS is the important line
-    btn.addEventListener("click", () => addToCart(product));
-
     div.appendChild(btn);
     container.appendChild(div);
 
