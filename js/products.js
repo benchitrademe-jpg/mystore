@@ -11,9 +11,7 @@ let allProducts = [];
 // LOAD DATA FROM GOOGLE SHEETS
 // ===========================
 
-fetch(SHEET_URL + "&cache=" + Date.now(), {
-  cache: "no-store"
-})
+fetch(SHEET_URL + "&cache=" + Date.now())
   .then(res => res.text())
   .then(csvText => {
 
