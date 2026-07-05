@@ -87,11 +87,7 @@ function parseCSV(csv) {
 function displayProducts(products) {
 
   const container = document.getElementById("product-list");
-
-  if (!container) {
-    console.error("Missing product-list");
-    return;
-  }
+  if (!container) return;
 
   container.innerHTML = "";
 
@@ -102,42 +98,22 @@ function displayProducts(products) {
 
     div.innerHTML = `
       <img src="${product.image}" alt="${product.name}">
-
       <h3>${product.name}</h3>
-
       <p>${product.description}</p>
-
-      <p><strong>$${product.price.toFixed(2)}</strong></p>
-
-      <p>Stock: ${product.stock}</p>
-
-      <button class="add-cart-btn">
-        🛒 Add to Cart
-      </button>
+      <p><strong>$${product.price}</strong></p>
     `;
 
-    const button = div.querySelector(".add-cart-btn");
+    const btn = document.createElement("button");
+    btn.textContent = "Add to Cart";
 
-    button.addEventListener("click", () => {
+    // THIS is the important line
+    btn.addEventListener("click", () => addToCart(product));
 
-      if (typeof addToCart === "function") {
-
-        addToCart(product);
-
-      } else {
-
-        console.error("main.js isn't loaded.");
-
-      }
-
-    });
-
+    div.appendChild(btn);
     container.appendChild(div);
 
   });
-
 }
-
 // ===========================
 // CATEGORY DROPDOWN
 // ===========================
