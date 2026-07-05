@@ -76,7 +76,35 @@ function showPopup(name) {
 }
 
 // ===========================
-// CART PAGE RENDER (THIS WAS MISSING)
+// INCREASE QUANTITY
+// ===========================
+window.increaseQty = function(index) {
+
+    cart[index].quantity += 1;
+
+    saveCart();
+    renderCart();
+    updateCartCount();
+};
+
+// ===========================
+// DECREASE QUANTITY
+// ===========================
+window.decreaseQty = function(index) {
+
+    cart[index].quantity -= 1;
+
+    if (cart[index].quantity <= 0) {
+        cart.splice(index, 1);
+    }
+
+    saveCart();
+    renderCart();
+    updateCartCount();
+};
+
+// ===========================
+// CART PAGE RENDER
 // ===========================
 function renderCart() {
 
