@@ -1,12 +1,12 @@
 name: Sync Products from Google Sheets
 
-permissions:
-  contents: write
-
 on:
   schedule:
-    - cron: "*/10 * * * *"   # runs every 10 minutes
-  workflow_dispatch:        # allows manual run button
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,36 +16,28 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Download CSV + convert to JSON
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install csv-parse
+
+      - name: Download Google Sheet CSV
         run: |
-          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv" > data.csv
+          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv" -o data.csv
 
-          node -e "
-          const fs = require('fs');
+      - name: Build products.json
+        run: node convert-products.js
 
-          const csv = fs.readFileSync('data.csv', 'utf8').trim().split('\n');
-          const headers = csv[0].split(',');
-
-          const products = csv.slice(1).map(row => {
-            const values = row.split(',');
-
-            return {
-              sku: values[0],
-              name: values[1],
-              price: parseFloat(values[2]),
-              stock: parseInt(values[3]),
-              image: values[4],
-              description: values[5]
-            };
-          });
-
-          fs.writeFileSync('products.json', JSON.stringify(products, null, 2));
-          "
-
-      - name: Commit and push changes
+      - name: Commit changes
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add products.json
-          git commit -m "Auto update products from Google Sheets" || exit 0
+
+          git diff --quiet && echo "No changes" && exit 0
+
+          git commit -m "Update products from Google Sheets"
           git push
