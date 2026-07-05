@@ -5,20 +5,25 @@ fetch("products.json")
   .then(res => res.json())
   .then(data => {
 
-    // Works with BOTH old and new formats
-    const products = Array.isArray(data) ? data : data.products;
+    console.log("RAW DATA:", data);
 
-    console.log("Loaded products:", products);
+    const products = Array.isArray(data)
+      ? data
+      : data.products;
 
-    if (!products) {
-      console.error("No products found in JSON");
+    console.log("FINAL PRODUCTS:", products);
+
+    if (!Array.isArray(products)) {
+      console.error("Products is not an array:", products);
       return;
     }
 
-    renderProducts(products);
-  })
-  .catch(err => console.error("Load error:", err));
+    allProducts = products;
 
+    displayProducts(products); // 🔥 ONLY THIS
+
+  })
+  .catch(err => console.error("FETCH ERROR:", err));
 // Render products to page
 function renderProducts(products) {
   const container = document.getElementById("product-list");
