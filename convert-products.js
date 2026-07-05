@@ -1,9 +1,17 @@
 const fs = require("fs");
 const { parse } = require("csv-parse/sync");
 
-const csv = fs.readFileSync("data.csv", "utf8");
+// Read CSV downloaded by GitHub Action
+const csvPath = "data.csv";
 
-// FORCE COMMA DELIMITER (this is the key fix)
+if (!fs.existsSync(csvPath)) {
+  console.error("❌ data.csv not found");
+  process.exit(1);
+}
+
+const csv = fs.readFileSync(csvPath, "utf8");
+
+// Parse CSV safely
 const records = parse(csv, {
   columns: true,
   skip_empty_lines: true,
@@ -11,7 +19,7 @@ const records = parse(csv, {
   delimiter: ","
 });
 
-// Hard-safe mapping (no guessing)
+// Convert to clean product structure
 const products = records
   .filter(row => row.sku && row.name)
   .map(row => ({
@@ -23,9 +31,20 @@ const products = records
     description: String(row.description || "").trim()
   }));
 
+// 🔥 Wrap with metadata so file ALWAYS changes when script runs
+const output = {
+  updatedAt: new Date().toISOString(),
+  productCount: products.length,
+  products
+};
+
+// Write JSON
 fs.writeFileSync(
   "products.json",
-  JSON.stringify(products, null, 2)
+  JSON.stringify(output, null, 2)
 );
 
-console.log("✅ products.json built correctly");
+// Debug logs (IMPORTANT for GitHub Actions)
+console.log("✅ products.json built successfully");
+console.log("📦 Products found:", products.length);
+console.log("🕒 Updated at:", output.updatedAt);
