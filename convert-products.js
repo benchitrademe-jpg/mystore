@@ -3,26 +3,29 @@ const { parse } = require("csv-parse/sync");
 
 const csv = fs.readFileSync("data.csv", "utf8");
 
-// AUTO-DETECT DELIMITER (fixes your issue)
+// FORCE COMMA DELIMITER (this is the key fix)
 const records = parse(csv, {
   columns: true,
   skip_empty_lines: true,
   trim: true,
-  relax_column_count: true
+  delimiter: ","
 });
 
-// Clean data safely
+// Hard-safe mapping (no guessing)
 const products = records
-  .map((row) => ({
-    sku: (row.sku || "").trim(),
-    name: (row.name || "").trim(),
-    price: Number(row.price),
-    stock: Number(row.stock),
-    image: (row.image || "").trim(),
-    description: (row.description || "").trim()
-  }))
-  .filter(p => p.sku && p.name);
+  .filter(row => row.sku && row.name)
+  .map(row => ({
+    sku: String(row.sku).trim(),
+    name: String(row.name).trim(),
+    price: Number(row.price || 0),
+    stock: Number(row.stock || 0),
+    image: String(row.image || "").trim(),
+    description: String(row.description || "").trim()
+  }));
 
-fs.writeFileSync("products.json", JSON.stringify(products, null, 2));
+fs.writeFileSync(
+  "products.json",
+  JSON.stringify(products, null, 2)
+);
 
-console.log("✅ Fixed products.json generated");
+console.log("✅ products.json built correctly");
