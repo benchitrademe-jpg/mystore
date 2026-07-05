@@ -1,18 +1,14 @@
-[
-  {
-    "sku": "",
-    "name": "sku",
-    "price": null,
-    "stock": null,
-    "image": "stock",
-    "description": "image"
-  },
-  {
-    "sku": "",
-    "name": "SKU001",
-    "price": null,
-    "stock": 59,
-    "image": "12",
-    "description": "images/blue-hoodie.jpg"
-  }
-]
+{
+  "updatedAt": "2026-07-05T02:28:11.941Z",
+  "productCount": 1,
+  "products": [
+    {
+      "sku": "SKU001",
+      "name": "Blue Hoodie",
+      "price": 59.99,
+      "stock": 12,
+      "image": "sad",
+      "description": "cool"
+    }
+  ]
+}
