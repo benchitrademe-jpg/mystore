@@ -33,8 +33,11 @@ function addToCart(product) {
 if (document.getElementById("product-list")) {
 
     fetch("products.json")
-        .then(response => response.json())
-        .then(products => {
+      .then(res => res.json())
+      .then(data => {
+        const products = data.products;
+    
+        products.forEach(product => {
 
             const productList = document.getElementById("product-list");
 
