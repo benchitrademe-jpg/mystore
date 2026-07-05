@@ -40,25 +40,38 @@ fetch("products.json")
 // Display Products
 // ===========================
 
-function displayProducts(data) {
+function displayProducts(products) {
 
-  // ALWAYS normalize to array
-  const products = Array.isArray(data) ? data : data.products;
+    if (!Array.isArray(products)) {
+        console.error("Expected array but got:", products);
+        return;
+    }
 
-  console.log("Products received:", products);
+    const container = document.getElementById("product-list");
 
-  if (!Array.isArray(products)) {
-    console.error("Products is not an array:", products);
-    return;
-  }
+    if (!container) {
+        console.error("Missing #product-list in HTML");
+        return;
+    }
 
-  products.forEach(product => {
-    console.log(product);
+    container.innerHTML = "";
 
-    // your existing render code here
-  });
+    products.forEach(product => {
+
+        const div = document.createElement("div");
+        div.className = "product";
+
+        div.innerHTML = `
+            <img src="${product.image}" />
+            <h3>${product.name}</h3>
+            <p>${product.description}</p>
+            <p>$${product.price}</p>
+            <p>Stock: ${product.stock}</p>
+        `;
+
+        container.appendChild(div);
+    });
 }
-
 
 // ===========================
 // Populate Category Dropdown
