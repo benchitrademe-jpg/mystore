@@ -1,41 +1,79 @@
-// ===========================
-// Shared Shopping Cart
-// ===========================
+/* ===========================
+   Cart Popup
+=========================== */
 
-let cart = JSON.parse(localStorage.getItem("cart")) || [];
+#cart-popup{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.45);
 
-function saveCart() {
-    localStorage.setItem("cart", JSON.stringify(cart));
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    opacity:0;
+    visibility:hidden;
+
+    transition:.25s;
+
+    z-index:9999;
 }
 
-function updateCartCount() {
-
-    const cartLink = document.querySelector('a[href="cart.html"]');
-
-    if (!cartLink) return;
-
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-    cartLink.textContent = `Cart 🛒 (${totalItems})`;
+#cart-popup.show{
+    opacity:1;
+    visibility:visible;
 }
 
-function addToCart(product) {
+.popup-box{
 
-    const existing = cart.find(item => item.sku === product.sku);
+    background:white;
 
-    if (existing) {
-        existing.quantity++;
-    } else {
-        cart.push({
-            ...product,
-            quantity: 1
-        });
+    padding:35px;
+
+    border-radius:18px;
+
+    text-align:center;
+
+    width:340px;
+
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+
+    animation:popup .25s ease;
+}
+
+.popup-icon{
+
+    font-size:60px;
+
+    margin-bottom:15px;
+}
+
+.popup-box h2{
+
+    margin:10px 0;
+
+    color:#1c7c38;
+
+    font-size:28px;
+}
+
+.popup-box p{
+
+    color:#666;
+
+    font-size:18px;
+}
+
+@keyframes popup{
+
+    from{
+        transform:scale(.8);
+        opacity:0;
     }
 
-    saveCart();
-    updateCartCount();
+    to{
+        transform:scale(1);
+        opacity:1;
+    }
 
-    alert(product.name + " added to cart!");
 }
-
-updateCartCount();
