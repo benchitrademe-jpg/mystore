@@ -2,10 +2,6 @@
 // LIVE PRODUCTS (Google Sheets)
 // ===========================
 
-// ===========================
-// LIVE PRODUCTS (Google Sheets)
-// ===========================
-
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa6ULaDZ8TEbpNKru_yqbGHWIryKzlfl_n9kvOiI27GBOrbhdEzgX0KA280WYVZbHXYSedBveys_8u/pub?output=csv";
 
@@ -13,22 +9,17 @@ let allProducts = [];
 
 console.log("🚀 products.js loaded");
 
-// Build a fresh URL every page load
+// Prevent browser caching
 const fetchUrl = SHEET_URL + "&cache=" + Date.now();
 
-console.log("Fetching URL:");
-console.log(fetchUrl);
-
 // ===========================
-// LOAD DATA FROM GOOGLE SHEETS
+// LOAD PRODUCTS
 // ===========================
 
 fetch(fetchUrl, {
   cache: "no-store"
 })
   .then(response => {
-
-    console.log("HTTP Status:", response.status);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -42,27 +33,17 @@ fetch(fetchUrl, {
     console.log("========== RAW CSV ==========");
     console.log(csvText);
 
-    const products = parseCSV(csvText);
+    allProducts = parseCSV(csvText);
 
-    console.log("========== PARSED PRODUCTS ==========");
-    console.table(products);
-
-    console.log("Product count:", products.length);
-    console.log("Loaded at:", new Date().toISOString());
-
-    allProducts = products;
+    console.table(allProducts);
 
     populateCategories(allProducts);
     displayProducts(allProducts);
-
     setupListeners();
 
   })
   .catch(error => {
-
-    console.error("❌ Error loading Google Sheet");
-    console.error(error);
-
+    console.error("Error loading products:", error);
   });
 
 // ===========================
@@ -81,8 +62,8 @@ function parseCSV(csv) {
 
     let obj = {};
 
-    headers.forEach((h, i) => {
-      obj[h] = values[i] || "";
+    headers.forEach((header, index) => {
+      obj[header] = values[index] || "";
     });
 
     return {
@@ -92,13 +73,12 @@ function parseCSV(csv) {
       stock: Number(obj.stock || 0),
       image: obj.image || "",
       description: obj.description || "",
-      category: obj.category || "Uncategorized"
+      category: obj.category || obj.catergory || "Uncategorized"
     };
 
   });
 
 }
-
 
 // ===========================
 // DISPLAY PRODUCTS
@@ -106,12 +86,10 @@ function parseCSV(csv) {
 
 function displayProducts(products) {
 
-  console.log("Rendering", products.length, "products");
-
   const container = document.getElementById("product-list");
 
   if (!container) {
-    console.error("❌ Missing #product-list");
+    console.error("Missing product-list");
     return;
   }
 
@@ -124,18 +102,41 @@ function displayProducts(products) {
 
     div.innerHTML = `
       <img src="${product.image}" alt="${product.name}">
+
       <h3>${product.name}</h3>
+
       <p>${product.description}</p>
+
       <p><strong>$${product.price.toFixed(2)}</strong></p>
+
       <p>Stock: ${product.stock}</p>
+
+      <button class="add-cart-btn">
+        🛒 Add to Cart
+      </button>
     `;
+
+    const button = div.querySelector(".add-cart-btn");
+
+    button.addEventListener("click", () => {
+
+      if (typeof addToCart === "function") {
+
+        addToCart(product);
+
+      } else {
+
+        console.error("main.js isn't loaded.");
+
+      }
+
+    });
 
     container.appendChild(div);
 
   });
 
 }
-
 
 // ===========================
 // CATEGORY DROPDOWN
@@ -149,7 +150,9 @@ function populateCategories(products) {
 
   categorySelect.innerHTML = `<option value="All">All</option>`;
 
-  const categories = [...new Set(products.map(p => p.category))]
+  const categories = [
+    ...new Set(products.map(product => product.category))
+  ]
     .filter(Boolean)
     .sort();
 
@@ -165,7 +168,6 @@ function populateCategories(products) {
   });
 
 }
-
 
 // ===========================
 // SEARCH + FILTER
@@ -197,7 +199,6 @@ function filterProducts() {
   displayProducts(filtered);
 
 }
-
 
 // ===========================
 // EVENT LISTENERS
