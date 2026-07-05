@@ -1,111 +1,73 @@
-// ===========================
-// Shopping Cart
-// ===========================
+let allProducts = [];
 
-let cart = JSON.parse(localStorage.getItem("cart")) || [];
+// Load products from GitHub JSON
+fetch("products.json")
+  .then(res => res.json())
+  .then(data => {
+    allProducts = data.products || [];
 
-// Save cart
-function saveCart() {
-    localStorage.setItem("cart", JSON.stringify(cart));
+    console.log("✅ Products loaded:", allProducts);
+
+    renderProducts(allProducts);
+  })
+  .catch(err => {
+    console.error("❌ Failed to load products:", err);
+  });
+
+// Render products to page
+function renderProducts(products) {
+  const container = document.getElementById("product-list");
+
+  if (!container) {
+    console.error("❌ No #product-list container found in HTML");
+    return;
+  }
+
+  container.innerHTML = "";
+
+  products.forEach(product => {
+    const card = document.createElement("div");
+    card.className = "product-card";
+
+    card.innerHTML = `
+      <img src="${product.image}" alt="${product.name}" />
+      <h3>${product.name}</h3>
+      <p>${product.description || ""}</p>
+      <p><strong>$${product.price}</strong></p>
+      <p>Stock: ${product.stock}</p>
+      <button onclick="addToCart('${product.sku}')">
+        Add to Cart
+      </button>
+    `;
+
+    container.appendChild(card);
+  });
 }
 
-// Add product
-function addToCart(product) {
+// Simple cart (temporary version)
+let cart = [];
 
-    const existing = cart.find(item => item.sku === product.sku);
+function addToCart(sku) {
+  const product = allProducts.find(p => p.sku === sku);
 
-    if (existing) {
-        existing.quantity++;
-    } else {
-        product.quantity = 1;
-        cart.push(product);
-    }
+  if (!product) {
+    console.error("❌ Product not found:", sku);
+    return;
+  }
 
-    saveCart();
+  if (product.stock <= 0) {
+    alert("Out of stock");
+    return;
+  }
 
-    alert(product.name + " added to cart!");
+  cart.push(product);
+
+  console.log("🛒 Cart:", cart);
+
+  alert(`${product.name} added to cart`);
 }
 
-// ===========================
-// Products Page
-// ===========================
-
-if (document.getElementById("product-list")) {
-
-    fetch("products.json")
-      .then(res => res.json())
-      .then(data => {
-        const products = data.products;
-    
-        products.forEach(product => {
-
-            const productList = document.getElementById("product-list");
-
-            products.forEach(product => {
-
-                const card = document.createElement("div");
-
-                card.className = "product-card";
-
-                card.innerHTML = `
-                    <div class="product-image">
-                        Image Coming Soon
-                    </div>
-
-                    <h2>${product.name}</h2>
-
-                    <p>${product.description}</p>
-
-                    <h3>$${product.price.toFixed(2)}</h3>
-
-                    <button>Add to Cart</button>
-                `;
-
-                card.querySelector("button").addEventListener("click", () => {
-                    addToCart(product);
-                });
-
-                productList.appendChild(card);
-
-            });
-
-        });
-
-}
-// ===========================
-// Cart Page
-// ===========================
-
-if (document.getElementById("cart-items")) {
-
-    const cartItems = document.getElementById("cart-items");
-
-    if (cart.length === 0) {
-
-        cartItems.innerHTML = "<h2>Your cart is empty.</h2>";
-
-    } else {
-
-        cart.forEach(item => {
-
-            const div = document.createElement("div");
-
-            div.className = "product-card";
-
-            div.innerHTML = `
-                <h2>${item.name}</h2>
-
-                <p>SKU: ${item.sku}</p>
-
-                <p>Quantity: ${item.quantity}</p>
-
-                <h3>$${(item.price * item.quantity).toFixed(2)}</h3>
-            `;
-
-            cartItems.appendChild(div);
-
-        });
-
-    }
+// Optional: expose cart for debugging
+window.cart = cart;
 
 }
