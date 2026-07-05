@@ -4,15 +4,20 @@ let allProducts = [];
 fetch("products.json")
   .then(res => res.json())
   .then(data => {
-    allProducts = data.products || [];
 
-    console.log("✅ Products loaded:", allProducts);
+    // Works with BOTH old and new formats
+    const products = Array.isArray(data) ? data : data.products;
 
-    renderProducts(allProducts);
+    console.log("Loaded products:", products);
+
+    if (!products) {
+      console.error("No products found in JSON");
+      return;
+    }
+
+    renderProducts(products);
   })
-  .catch(err => {
-    console.error("❌ Failed to load products:", err);
-  });
+  .catch(err => console.error("Load error:", err));
 
 // Render products to page
 function renderProducts(products) {
