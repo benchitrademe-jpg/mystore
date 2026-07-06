@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Benj's Store</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <div class="logo">Benj's Store</div>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="cart.html" id="cart-link">Cart 🛒 (0)</a>
+    </nav>
+</header>
+
+<main class="checkout-page">
+
+    <div id="checkout-form-section">
+
+        <h1>Checkout</h1>
+
+        <div class="checkout-grid">
+
+            <section class="checkout-summary-box">
+                <h2>Your order</h2>
+                <div id="order-summary"></div>
+                <div class="checkout-total-line">
+                    <span>Total</span>
+                    <span>$<span id="checkout-total">0.00</span></span>
+                </div>
+            </section>
+
+            <section class="checkout-details-box">
+                <h2>Your details</h2>
+
+                <form id="checkout-form">
+                    <label>
+                        Name *
+                        <input type="text" id="cust-name" required>
+                    </label>
+
+                    <label>
+                        Email *
+                        <input type="email" id="cust-email" required>
+                    </label>
+
+                    <label>
+                        Phone
+                        <input type="tel" id="cust-phone">
+                    </label>
+
+                    <label>
+                        Order notes (optional)
+                        <textarea id="cust-note" rows="3"></textarea>
+                    </label>
+
+                    <p class="pay-note">
+                        Payment is by <strong>bank transfer</strong>. After you place
+                        your order we'll show you the account details and a reference
+                        number to include with your transfer.
+                    </p>
+
+                    <button type="submit" id="place-order" class="button">Place order</button>
+
+                    <p id="checkout-status" class="checkout-status"></p>
+                </form>
+            </section>
+
+        </div>
+    </div>
+
+    <div id="confirmation" style="display:none;"></div>
+
+</main>
+
+<script src="js/main.js"></script>
+<script src="js/checkout.js"></script>
+
+</body>
+</html>

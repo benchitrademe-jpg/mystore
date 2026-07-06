@@ -13,8 +13,37 @@ console.log("🚀 products.js loaded");
 const fetchUrl = SHEET_URL + "&cache=" + Date.now();
 
 // ===========================
+// LOADING STATE
+// ===========================
+
+function showLoading() {
+  const container = document.getElementById("product-list");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading products…</p>
+    </div>
+  `;
+}
+
+function showError() {
+  const container = document.getElementById("product-list");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="loading">
+      <p>Couldn't load products. Please refresh and try again.</p>
+    </div>
+  `;
+}
+
+// ===========================
 // LOAD PRODUCTS
 // ===========================
+
+showLoading();
 
 fetch(fetchUrl, {
   cache: "no-store"
@@ -44,6 +73,7 @@ fetch(fetchUrl, {
   })
   .catch(error => {
     console.error("Error loading products:", error);
+    showError();
   });
 
 // ===========================
@@ -52,18 +82,17 @@ fetch(fetchUrl, {
 
 function parseCSV(csv) {
 
-  const lines = csv.trim().split(/\r?\n/);
+  const rows = parseCSVRows(csv);
+  if (rows.length === 0) return [];
 
-  const headers = lines[0].split(",").map(h => h.trim());
+  const headers = rows[0].map(h => h.trim());
 
-  return lines.slice(1).map(line => {
-
-    const values = line.split(",").map(v => v.trim());
+  return rows.slice(1).map(cells => {
 
     let obj = {};
 
     headers.forEach((header, index) => {
-      obj[header] = values[index] || "";
+      obj[header] = (cells[index] || "").trim();
     });
 
     return {
@@ -80,9 +109,67 @@ function parseCSV(csv) {
 
 }
 
+// Quote-aware CSV parser: handles commas, quotes, and newlines inside
+// quoted fields (e.g. a description like "Compact, portable drill").
+function parseCSVRows(csv) {
+
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (csv[i + 1] === '"') {   // escaped quote ("")
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n" || char === "\r") {
+      if (char === "\r" && csv[i + 1] === "\n") i++;   // CRLF
+      row.push(field);
+      field = "";
+      // Skip fully blank lines
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      field += char;
+    }
+  }
+
+  // Flush trailing field/row (file may not end in a newline)
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    if (row.length > 1 || row[0] !== "") rows.push(row);
+  }
+
+  return rows;
+}
+
 // ===========================
 // DISPLAY PRODUCTS
 // ===========================
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function displayProducts(products) {
 
@@ -97,18 +184,23 @@ function displayProducts(products) {
     div.className = "product-card";
 
     div.innerHTML = `
-      <img src="${product.image}" alt="${product.name}">
-      <h3>${product.name}</h3>
-      <p>${product.description}</p>
+      <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">
+      <h3>${escapeHtml(product.name)}</h3>
+      <p>${escapeHtml(product.description)}</p>
       <p><strong>$${product.price}</strong></p>
     `;
 
     const btn = document.createElement("button");
-    btn.textContent = "Add to Cart";
     btn.className = "add-to-cart-btn";
-    
-    btn.addEventListener("click", () => addToCart(product));
-    
+
+    if (product.stock <= 0) {
+      btn.textContent = "Sold out";
+      btn.disabled = true;
+    } else {
+      btn.textContent = "Add to Cart";
+      btn.addEventListener("click", () => addToCart(product));
+    }
+
     div.appendChild(btn);
     container.appendChild(div);
 

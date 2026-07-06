@@ -113,19 +113,26 @@ function renderCart() {
 
     container.innerHTML = "";
 
+    const totalEl = document.getElementById("cart-total");
+
     if (cart.length === 0) {
         container.innerHTML = "<p>Your cart is empty 🛒</p>";
+        if (totalEl) totalEl.textContent = "0.00";
         return;
     }
 
+    let total = 0;
+
     cart.forEach((item, index) => {
+
+        total += item.price * item.quantity;
 
         const div = document.createElement("div");
         div.className = "cart-item";
 
         div.innerHTML = `
             <div>
-                <h3>${item.name}</h3>
+                <h3>${escapeCartHtml(item.name)}</h3>
                 <p>$${item.price}</p>
                 <p><strong>Subtotal: $${(item.price * item.quantity).toFixed(2)}</strong></p>
             </div>
@@ -140,7 +147,16 @@ function renderCart() {
         container.appendChild(div);
     });
 
+    if (totalEl) totalEl.textContent = total.toFixed(2);
+
     saveCart();
+}
+
+function escapeCartHtml(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
 // ===========================
