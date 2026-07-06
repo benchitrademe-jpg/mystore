@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-07-06T06:04:40.378Z",
+  "updatedAt": "2026-07-06T10:58:54.914Z",
   "productCount": 2,
   "products": [
     {
       "sku": "A001",
       "name": "adsc",
       "price": 20,
-      "stock": 2,
+      "stock": 1,
       "image": "sad",
       "description": "cool"
     },
