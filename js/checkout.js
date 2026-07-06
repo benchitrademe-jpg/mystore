@@ -5,7 +5,7 @@
 // Paste the Web App URL you get when you deploy the Apps Script
 // (see SETUP-CHECKOUT.md) between the quotes below.
 //
-const CHECKOUT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const CHECKOUT_URL = "https://script.google.com/macros/s/AKfycbyA3U86jsRDdqSl26j69qCQnFQzrB0tooibyixkoroAGqDoOmZHAjgHQohdwJ92ipE/exec";
 
 // ===========================
 // ORDER SUMMARY
