@@ -8,28 +8,59 @@
 const CHECKOUT_URL = "https://script.google.com/macros/s/AKfycbyA3U86jsRDdqSl26j69qCQnFQzrB0tooibyixkoroAGqDoOmZHAjgHQohdwJ92ipE/exec";
 
 // ===========================
+// POSTAGE
+// ===========================
+const POSTAGE_URBAN = 6.80;
+const POSTAGE_RURAL = 12.00;
+
+// Returns the postage cost, or null if we can't work it out yet
+// (address not filled in, or no delivery type chosen).
+function getPostage() {
+    const address  = document.getElementById("cust-address").value.trim();
+    const suburb   = document.getElementById("cust-suburb").value.trim();
+    const city     = document.getElementById("cust-city").value.trim();
+    const postcode = document.getElementById("cust-postcode").value.trim();
+
+    if (!address || !suburb || !city || !postcode) return null;
+
+    const isUrban = document.getElementById("cust-urban").checked;
+    const isRural = document.getElementById("cust-rural").checked;
+
+    if (!isUrban && !isRural) return null;
+
+    // Rural is the pricier rate, so it wins if both are ticked.
+    return isRural ? POSTAGE_RURAL : POSTAGE_URBAN;
+}
+
+// ===========================
 // ORDER SUMMARY
 // ===========================
 function renderSummary() {
 
     const box = document.getElementById("order-summary");
-    const totalEl = document.getElementById("checkout-total");
+    const subtotalEl = document.getElementById("checkout-subtotal");
+    const postageEl = document.getElementById("postage-value");
+    const totalEl = document.getElementById("total-value");
     const placeBtn = document.getElementById("place-order");
     if (!box) return;
 
     if (cart.length === 0) {
         box.innerHTML =
             '<p>Your cart is empty. <a href="products.html">Browse products</a>.</p>';
-        if (totalEl) totalEl.textContent = "0.00";
+        if (subtotalEl) subtotalEl.textContent = "0.00";
+        if (postageEl) postageEl.textContent = "—";
+        if (totalEl) totalEl.textContent = "$0.00";
         if (placeBtn) placeBtn.disabled = true;
         return;
     }
 
-    let total = 0;
+    if (placeBtn) placeBtn.disabled = false;
+
+    let subtotal = 0;
     box.innerHTML = "";
 
     cart.forEach(item => {
-        total += item.price * item.quantity;
+        subtotal += item.price * item.quantity;
 
         const line = document.createElement("div");
         line.className = "summary-line";
@@ -40,7 +71,19 @@ function renderSummary() {
         box.appendChild(line);
     });
 
-    if (totalEl) totalEl.textContent = total.toFixed(2);
+    if (subtotalEl) subtotalEl.textContent = subtotal.toFixed(2);
+
+    // Postage + total only appear once we have a full address and a
+    // delivery type — otherwise we can't work out the shipping cost.
+    const postage = getPostage();
+
+    if (postage === null) {
+        if (postageEl) postageEl.textContent = "—";
+        if (totalEl) totalEl.textContent = "Enter delivery address";
+    } else {
+        if (postageEl) postageEl.textContent = "$" + postage.toFixed(2);
+        if (totalEl) totalEl.textContent = "$" + (subtotal + postage).toFixed(2);
+    }
 }
 
 // ===========================
@@ -54,15 +97,35 @@ async function placeOrder(event) {
 
     if (cart.length === 0) return;
 
+    const isUrban = document.getElementById("cust-urban").checked;
+    const isRural = document.getElementById("cust-rural").checked;
+
     const customer = {
         name: document.getElementById("cust-name").value.trim(),
         email: document.getElementById("cust-email").value.trim(),
         phone: document.getElementById("cust-phone").value.trim(),
+        address: document.getElementById("cust-address").value.trim(),
+        suburb: document.getElementById("cust-suburb").value.trim(),
+        city: document.getElementById("cust-city").value.trim(),
+        postcode: document.getElementById("cust-postcode").value.trim(),
+        deliveryType: [isUrban ? "Urban" : null, isRural ? "Rural" : null]
+            .filter(Boolean).join(", "),
+        postage: getPostage(),
         note: document.getElementById("cust-note").value.trim()
     };
 
     if (!customer.name || !customer.email) {
         status.textContent = "Please enter your name and email.";
+        return;
+    }
+
+    if (!customer.address || !customer.suburb || !customer.city || !customer.postcode) {
+        status.textContent = "Please fill in your full delivery address.";
+        return;
+    }
+
+    if (!isUrban && !isRural) {
+        status.textContent = "Please select at least one delivery type (Urban or Rural).";
         return;
     }
 
@@ -157,4 +220,14 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSummary();
     const form = document.getElementById("checkout-form");
     if (form) form.addEventListener("submit", placeOrder);
+
+    // Recalculate postage + total live as the address / delivery type change.
+    ["cust-address", "cust-suburb", "cust-city", "cust-postcode"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", renderSummary);
+    });
+    ["cust-urban", "cust-rural"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", renderSummary);
+    });
 });

@@ -30,9 +30,20 @@
             <section class="checkout-summary-box">
                 <h2>Your order</h2>
                 <div id="order-summary"></div>
+
+                <div class="summary-line" id="subtotal-line">
+                    <span>Subtotal</span>
+                    <span>$<span id="checkout-subtotal">0.00</span></span>
+                </div>
+
+                <div class="summary-line" id="postage-line">
+                    <span>Postage</span>
+                    <span id="postage-value">—</span>
+                </div>
+
                 <div class="checkout-total-line">
                     <span>Total</span>
-                    <span>$<span id="checkout-total">0.00</span></span>
+                    <span id="total-value">Enter delivery address</span>
                 </div>
             </section>
 
@@ -54,6 +65,40 @@
                         Phone
                         <input type="tel" id="cust-phone">
                     </label>
+
+                    <label>
+                        Street address *
+                        <input type="text" id="cust-address" required>
+                    </label>
+
+                    <label>
+                        Suburb *
+                        <input type="text" id="cust-suburb" required>
+                    </label>
+
+                    <label>
+                        Town / City *
+                        <input type="text" id="cust-city" required>
+                    </label>
+
+                    <label>
+                        Postcode *
+                        <input type="text" id="cust-postcode" required>
+                    </label>
+
+                    <fieldset class="delivery-type">
+                        <legend>Delivery type * (select at least one)</legend>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="cust-urban" name="delivery-type">
+                            Urban (not rural)
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="cust-rural" name="delivery-type">
+                            Rural
+                        </label>
+                    </fieldset>
 
                     <label>
                         Order notes (optional)
