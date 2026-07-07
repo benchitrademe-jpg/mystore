@@ -15,7 +15,7 @@
 var STORE_NAME = "Benj's Store";
 
 // Where new-order notifications are sent.
-var OWNER_EMAIL = "david@limblink.nz";   // <-- change to the store owner's email
+var OWNER_EMAIL = "benchi.trademe@gmail.com";   // <-- change to the store owner's email
 
 // The tab (sheet) name that holds your products.
 // Look at the bottom of your spreadsheet for the exact tab name.
