@@ -25,6 +25,7 @@ const products = records
   .map(row => ({
     sku: String(row.sku).trim(),
     name: String(row.name).trim(),
+    variant: String(row.variant || "").trim(),
     price: Number(row.price || 0),
     stock: Number(row.stock || 0),
     image: String(row.image || "").trim(),

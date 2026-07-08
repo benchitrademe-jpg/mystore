@@ -23,8 +23,9 @@ You only have to do this **once** (about 15 minutes).
    mark it `PAID`. If they never pay, you **Cancel** it and the stock is
    automatically put back.
 
-Prices and stock are always taken from the sheet on the server side, so a
-customer can't tamper with prices, and two people can't both buy the last item.
+Prices, stock, and postage are always worked out from the sheet and the config
+on the server side, so a customer can't tamper with prices or give themselves
+free shipping, and two people can't both buy the last item.
 
 ---
 
@@ -41,9 +42,31 @@ customer can't tamper with prices, and two people can't both buy the last item.
 - `PRODUCTS_SHEET` – the **tab name** that holds your products (see the tabs
   at the bottom of the spreadsheet; it might be `Sheet1`).
 - `BANK_DETAILS` – your account name, number, and bank.
+- `POSTAGE_URBAN` / `POSTAGE_RURAL` – shipping rates. **These must match
+  `POSTAGE_URBAN` / `POSTAGE_RURAL` in `js/checkout.js`**, or the customer will
+  be quoted one price at checkout and charged another in the email.
 
 > Your product tab must have header columns named `sku`, `name`, `price`, and
 > `stock` (any order). It already does if it matches the storefront.
+
+### Variants (optional)
+
+If a product comes in several versions, give **each version its own row** and
+add a `variant` column naming it. Every row needs its own unique `sku`, so
+stock is tracked per version and an order says exactly which one to pack:
+
+| name | variant | sku | price | stock |
+|------|---------|-----|-------|-------|
+| Burr Set | 6pcs  | AA-06 | 6.99  | 5 |
+| Burr Set | 10pcs | AA-10 | 8.99  | 3 |
+| Burr Set | 20pcs | AA-20 | 12.99 | 0 |
+| Router Set 10pcs |  | AB | 10.99 | 4 |
+
+Products without versions leave `variant` blank. Don't put several versions in
+one cell (`6pcs, 10pcs, 20pcs`) — the price would be read as text, not a number,
+and the product would sell for $0.
+
+The `variant` column is optional: a sheet without it keeps working unchanged.
 
 ### 3. Deploy as a Web App
 - Top right: **Deploy → New deployment**.

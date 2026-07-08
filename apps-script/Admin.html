@@ -1,0 +1,367 @@
+<!--
+  Benj's Store — orders admin page.
+
+  Served by doGet(?page=admin) in Code.gs, behind Google sign-in.
+  This file must be added to the Apps Script project as an HTML file
+  named exactly "Admin" (see SETUP-ADMIN.md).
+
+  Everything the customer typed (name, note, address) is written with
+  textContent, never innerHTML — a note containing <script> must render
+  as text, not run.
+-->
+<style>
+  :root {
+    --line: #e3e6ea;
+    --muted: #6b7280;
+    --bg: #f6f7f9;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px;
+    background: var(--bg);
+    color: #1f2328;
+    font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+  #status {
+    min-height: 22px;
+    margin: 10px 0 18px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  #status.error { color: #b42318; font-weight: 600; }
+
+  .order {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .order-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .ref { font-weight: 700; font-size: 16px; }
+  .when { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .total { font-weight: 700; font-size: 16px; }
+
+  .pill {
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+  .pill.PENDING   { background: #fff3cd; color: #7a5b00; }
+  .pill.PAID      { background: #dbeafe; color: #1e429f; }
+  .pill.SHIPPED   { background: #d1fae5; color: #065f46; }
+  .pill.CANCELLED { background: #f3f4f6; color: #6b7280; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 14px 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .field-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .items { white-space: pre-line; }
+  .money { color: var(--muted); font-size: 14px; }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  input[type=text] {
+    padding: 8px 10px;
+    border: 1px solid #cbd2d9;
+    border-radius: 6px;
+    font: inherit;
+    min-width: 190px;
+  }
+
+  button {
+    padding: 8px 14px;
+    border: 1px solid #cbd2d9;
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #f0f2f5; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  button.primary { background: #1a6fbf; border-color: #1a6fbf; color: #fff; }
+  button.primary:hover:not(:disabled) { background: #155a9c; }
+  button.danger { color: #b42318; border-color: #f0c2bd; }
+  button.danger:hover:not(:disabled) { background: #fdf3f2; }
+
+  .notified { color: #065f46; font-size: 13px; }
+  .empty { color: var(--muted); padding: 10px 0 20px; }
+
+  details { margin-top: 26px; }
+  summary { cursor: pointer; font-weight: 600; color: var(--muted); padding: 6px 0; }
+</style>
+
+<header>
+  <h1>Orders</h1>
+  <span class="spacer"></span>
+  <button id="refresh">Refresh</button>
+</header>
+
+<div id="status">Loading orders…</div>
+
+<section>
+  <h2>Needs action</h2>
+  <div id="action-list"></div>
+</section>
+
+<details id="done-wrap">
+  <summary><span id="done-count">0</span> completed &amp; cancelled</summary>
+  <div id="done-list"></div>
+</details>
+
+<script>
+  // PENDING = awaiting payment, PAID = packed next, both need Benj.
+  var NEEDS_ACTION = ["PENDING", "PAID"];
+
+  var ORDERS = [];
+
+  function $(id) { return document.getElementById(id); }
+
+  function setStatus(msg, isError) {
+    var el = $("status");
+    el.textContent = msg || "";
+    el.className = isError ? "error" : "";
+  }
+
+  function money(n) { return "$" + Number(n || 0).toFixed(2); }
+
+  function whenText(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleString();
+  }
+
+  // ---------------------------------------------------------------
+  // Rendering. Customer text goes through textContent, never innerHTML.
+  // ---------------------------------------------------------------
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function field(label, value) {
+    var wrap = el("div");
+    wrap.appendChild(el("div", "field-label", label));
+    wrap.appendChild(el("div", null, value || "—"));
+    return wrap;
+  }
+
+  function renderOrder(order) {
+    var card = el("div", "order");
+    card.dataset.ref = order.Reference;
+
+    var top = el("div", "order-top");
+    top.appendChild(el("span", "ref", order.Reference));
+    top.appendChild(el("span", "pill " + order.Status, order.Status));
+    top.appendChild(el("span", "when", whenText(order.Timestamp)));
+    top.appendChild(el("span", "spacer"));
+    top.appendChild(el("span", "total", money(order.Total)));
+    card.appendChild(top);
+
+    var grid = el("div", "grid");
+
+    var who = el("div");
+    who.appendChild(el("div", "field-label", "Customer"));
+    who.appendChild(el("div", null, order.Name));
+    who.appendChild(el("div", "money", order.Email));
+    if (order.Phone) who.appendChild(el("div", "money", order.Phone));
+    grid.appendChild(who);
+
+    grid.appendChild(field("Deliver to (" + (order.Delivery || "?") + ")", order.Address));
+
+    var items = el("div");
+    items.appendChild(el("div", "field-label", "Items"));
+    items.appendChild(el("div", "items", order.Items));
+    items.appendChild(el("div", "money",
+      money(order.Subtotal) + " + " + money(order.Postage) + " postage"));
+    grid.appendChild(items);
+
+    if (order.Note) grid.appendChild(field("Note", order.Note));
+
+    card.appendChild(grid);
+    card.appendChild(renderActions(order));
+
+    return card;
+  }
+
+  function renderActions(order) {
+    var bar = el("div", "actions");
+
+    if (order.Status === "CANCELLED") {
+      bar.appendChild(el("span", "money", "Cancelled — stock was restored."));
+      return bar;
+    }
+
+    var input = el("input");
+    input.type = "text";
+    input.placeholder = "Tracking number";
+    input.value = order.Tracking || "";
+    bar.appendChild(input);
+
+    var save = el("button", "primary", "Save tracking");
+    save.onclick = function () {
+      run(save, "adminSetTracking", [order.Reference, input.value],
+        "Tracking saved for " + order.Reference + ".");
+    };
+    bar.appendChild(save);
+
+    var notify = el("button", null, "Notify customer");
+    // Notifying sends whatever is SAVED on the sheet, not what's typed in the
+    // box — so it stays disabled until a tracking number has actually been saved.
+    notify.disabled = !order.Tracking;
+    notify.title = order.Tracking ? "" : "Save a tracking number first";
+    notify.onclick = function () {
+      run(notify, "adminNotifyTracking", [order.Reference],
+        "Emailed tracking to " + order.Email + ".");
+    };
+    bar.appendChild(notify);
+
+    if (order.Notified) {
+      bar.appendChild(el("span", "notified", "✓ notified " + whenText(order.Notified)));
+    }
+
+    bar.appendChild(el("span", "spacer"));
+
+    if (order.Status === "PENDING") {
+      var paid = el("button", null, "Mark PAID");
+      paid.onclick = function () {
+        run(paid, "adminSetStatus", [order.Reference, "PAID"],
+          order.Reference + " marked PAID.");
+      };
+      bar.appendChild(paid);
+    }
+
+    if (order.Status !== "SHIPPED") {
+      var shipped = el("button", null, "Mark SHIPPED");
+      shipped.onclick = function () {
+        run(shipped, "adminSetStatus", [order.Reference, "SHIPPED"],
+          order.Reference + " marked SHIPPED.");
+      };
+      bar.appendChild(shipped);
+    }
+
+    var cancel = el("button", "danger", "Cancel order");
+    cancel.onclick = function () {
+      var ok = window.confirm(
+        "Cancel " + order.Reference + " and put its stock back on the shelf?\n\n" +
+        "This can't be undone."
+      );
+      if (!ok) return;
+      run(cancel, "adminCancelOrder", [order.Reference],
+        order.Reference + " cancelled, stock restored.");
+    };
+    bar.appendChild(cancel);
+
+    return bar;
+  }
+
+  function renderAll() {
+    var needs = ORDERS.filter(function (o) { return NEEDS_ACTION.indexOf(o.Status) >= 0; });
+    var done  = ORDERS.filter(function (o) { return NEEDS_ACTION.indexOf(o.Status) < 0; });
+
+    var actionList = $("action-list");
+    actionList.textContent = "";
+    if (!needs.length) {
+      actionList.appendChild(el("p", "empty", "Nothing to do — every order is shipped or cancelled."));
+    } else {
+      needs.forEach(function (o) { actionList.appendChild(renderOrder(o)); });
+    }
+
+    var doneList = $("done-list");
+    doneList.textContent = "";
+    done.forEach(function (o) { doneList.appendChild(renderOrder(o)); });
+    $("done-count").textContent = done.length;
+    $("done-wrap").style.display = done.length ? "" : "none";
+  }
+
+  // ---------------------------------------------------------------
+  // Server calls
+  // ---------------------------------------------------------------
+
+  // Disables the clicked button for the round trip, swaps the updated order
+  // into place, and re-renders. Buttons come back on failure so it can be retried.
+  function run(button, fnName, args, successMsg) {
+    var buttons = document.querySelectorAll("button");
+    for (var i = 0; i < buttons.length; i++) buttons[i].disabled = true;
+    setStatus("Working…");
+
+    google.script.run
+      .withSuccessHandler(function (updated) {
+        var i = ORDERS.findIndex(function (o) { return o.Reference === updated.Reference; });
+        if (i >= 0) ORDERS[i] = updated;
+        setStatus(successMsg);
+        renderAll();
+      })
+      .withFailureHandler(function (err) {
+        setStatus(err.message || String(err), true);
+        renderAll();   // restores every button's correct enabled state
+      })
+      [fnName].apply(null, args);
+  }
+
+  function load() {
+    setStatus("Loading orders…");
+    google.script.run
+      .withSuccessHandler(function (orders) {
+        ORDERS = orders || [];
+        setStatus(ORDERS.length ? "" : "No orders yet.");
+        renderAll();
+      })
+      .withFailureHandler(function (err) {
+        setStatus(err.message || String(err), true);
+      })
+      .adminListOrders();
+  }
+
+  $("refresh").onclick = load;
+  load();
+</script>

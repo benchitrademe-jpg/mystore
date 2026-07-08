@@ -1,6 +1,17 @@
 let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
 // ===========================
+// DISPLAY NAME
+// ===========================
+// "Burr Set" + "10pcs" -> "Burr Set — 10pcs".
+// Products with no variant, and carts saved before variants existed,
+// have no `variant` and fall through unchanged.
+function displayName(item) {
+    const variant = (item.variant || "").trim();
+    return variant ? `${item.name} — ${variant}` : item.name;
+}
+
+// ===========================
 // SAVE CART
 // ===========================
 function saveCart() {
@@ -32,6 +43,7 @@ window.addToCart = function(product) {
         cart.push({
             sku: product.sku,
             name: product.name,
+            variant: product.variant || "",
             price: product.price,
             image: product.image,
             quantity: 1
@@ -40,7 +52,7 @@ window.addToCart = function(product) {
 
     saveCart();
     updateCartCount();
-    showPopup(product.name);
+    showPopup(displayName(product));
 };
 
 // ===========================
@@ -132,7 +144,7 @@ function renderCart() {
 
         div.innerHTML = `
             <div>
-                <h3>${escapeCartHtml(item.name)}</h3>
+                <h3>${escapeCartHtml(displayName(item))}</h3>
                 <p>$${item.price}</p>
                 <p><strong>Subtotal: $${(item.price * item.quantity).toFixed(2)}</strong></p>
             </div>

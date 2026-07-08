@@ -65,7 +65,7 @@ function renderSummary() {
         const line = document.createElement("div");
         line.className = "summary-line";
         line.innerHTML = `
-            <span>${escapeCartHtml(item.name)} × ${item.quantity}</span>
+            <span>${escapeCartHtml(displayName(item))} × ${item.quantity}</span>
             <span>$${(item.price * item.quantity).toFixed(2)}</span>
         `;
         box.appendChild(line);
@@ -108,9 +108,10 @@ async function placeOrder(event) {
         suburb: document.getElementById("cust-suburb").value.trim(),
         city: document.getElementById("cust-city").value.trim(),
         postcode: document.getElementById("cust-postcode").value.trim(),
+        // The server works the postage out from this — sending a cost from
+        // the browser would let a customer set their own shipping price.
         deliveryType: [isUrban ? "Urban" : null, isRural ? "Rural" : null]
             .filter(Boolean).join(", "),
-        postage: getPostage(),
         note: document.getElementById("cust-note").value.trim()
     };
 
@@ -192,6 +193,13 @@ function showConfirmation(data) {
         <h1>Order placed 🎉</h1>
 
         <p>Thanks! Your order reference is <strong>${escapeCartHtml(data.reference)}</strong>.</p>
+
+        ${data.postage == null ? "" : `
+        <p class="confirm-breakdown">
+            Items: $${Number(data.subtotal).toFixed(2)}<br>
+            Postage: $${Number(data.postage).toFixed(2)}
+        </p>`}
+
         <p>Amount to pay: <strong>$${Number(data.total).toFixed(2)}</strong></p>
 
         <div class="bank-box">

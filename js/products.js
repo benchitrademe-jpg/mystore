@@ -98,6 +98,7 @@ function parseCSV(csv) {
     return {
       sku: obj.sku || "",
       name: obj.name || "",
+      variant: obj.variant || "",
       price: Number(obj.price || 0),
       stock: Number(obj.stock || 0),
       image: obj.image || "",
@@ -184,8 +185,11 @@ function displayProducts(products) {
     div.className = "product-card";
 
     div.innerHTML = `
-      <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">
+      <img src="${escapeHtml(product.image)}" alt="${escapeHtml(displayName(product))}">
       <h3>${escapeHtml(product.name)}</h3>
+      ${product.variant
+        ? `<p class="variant">${escapeHtml(product.variant)}</p>`
+        : ""}
       <p>${escapeHtml(product.description)}</p>
       <p><strong>$${product.price}</strong></p>
     `;
@@ -253,6 +257,7 @@ function filterProducts() {
 
     const matchesSearch =
       product.name.toLowerCase().includes(search) ||
+      product.variant.toLowerCase().includes(search) ||
       product.description.toLowerCase().includes(search) ||
       product.sku.toLowerCase().includes(search);
 
