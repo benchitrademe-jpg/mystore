@@ -1,10 +1,11 @@
 {
-  "updatedAt": "2026-07-08T03:42:56.498Z",
+  "updatedAt": "2026-07-08T06:17:30.164Z",
   "productCount": 2,
   "products": [
     {
       "sku": "A001",
       "name": "adsc",
+      "variant": "",
       "price": 20,
       "stock": 1,
       "image": "sad",
@@ -13,6 +14,7 @@
     {
       "sku": "A002",
       "name": "Burr set",
+      "variant": "",
       "price": 40,
       "stock": 3,
       "image": "a",
