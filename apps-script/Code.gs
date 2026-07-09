@@ -115,6 +115,26 @@ function escapeHtml_(str) {
     .replace(/"/g, "&quot;");
 }
 
+// The header row is typed by hand in the spreadsheet, so accept the spellings
+// it has actually used. Matched exactly, after trim + lowercase — which is what
+// keeps `price` from binding to the `TM Price` column beside it.
+// Keep in sync with COLUMN_ALIASES in js/products.js.
+var COLUMN_ALIASES = {
+  sku: ["sku"],
+  name: ["name", "product name"],
+  variant: ["variant", "version"],
+  price: ["price"],
+  stock: ["stock"]
+};
+
+function columnIndex_(header, aliases) {
+  for (var i = 0; i < aliases.length; i++) {
+    var at = header.indexOf(aliases[i]);
+    if (at >= 0) return at;
+  }
+  return -1;
+}
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   // Wait up to 30s for any other order to finish, so two orders can't
@@ -151,13 +171,13 @@ function doPost(e) {
 
     var data = pSheet.getDataRange().getValues();
     var header = data[0].map(function (h) { return String(h).trim().toLowerCase(); });
-    var skuCol = header.indexOf("sku");
-    var stockCol = header.indexOf("stock");
-    var priceCol = header.indexOf("price");
-    var nameCol = header.indexOf("name");
-    // Optional: sheets with no `variant` column still work (indexOf -> -1),
-    // so this is deliberately left out of the required-columns check below.
-    var variantCol = header.indexOf("variant");
+    var skuCol = columnIndex_(header, COLUMN_ALIASES.sku);
+    var stockCol = columnIndex_(header, COLUMN_ALIASES.stock);
+    var priceCol = columnIndex_(header, COLUMN_ALIASES.price);
+    var nameCol = columnIndex_(header, COLUMN_ALIASES.name);
+    // Optional: sheets with no variant column still work (-1), so this is
+    // deliberately left out of the required-columns check below.
+    var variantCol = columnIndex_(header, COLUMN_ALIASES.variant);
 
     if (skuCol < 0 || stockCol < 0 || priceCol < 0 || nameCol < 0) {
       return jsonOut_({ ok: false, error: "Server misconfigured: product columns not found." });
