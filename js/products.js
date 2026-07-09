@@ -80,33 +80,53 @@ fetch(fetchUrl, {
 // CSV PARSER
 // ===========================
 
+// The sheet's header row is typed by hand, so accept the spellings it has
+// actually used. Headers are matched exactly, after trim + lowercase — which
+// is what keeps `price` from binding to the `TM Price` column beside it.
+// Keep in sync with COLUMN_ALIASES in apps-script/Code.gs.
+const COLUMN_ALIASES = {
+  sku:         ["sku"],
+  name:        ["name", "product name"],
+  variant:     ["variant", "version"],
+  price:       ["price"],
+  stock:       ["stock"],
+  image:       ["image"],
+  description: ["description"],
+  category:    ["category", "catergory"]
+};
+
 function parseCSV(csv) {
 
   const rows = parseCSVRows(csv);
   if (rows.length === 0) return [];
 
-  const headers = rows[0].map(h => h.trim());
+  const headers = rows[0].map(h => h.trim().toLowerCase());
 
-  return rows.slice(1).map(cells => {
+  // field name -> column index, or -1 when the sheet has no such column.
+  const col = {};
+  for (const field in COLUMN_ALIASES) {
+    col[field] = COLUMN_ALIASES[field].reduce(
+      (found, alias) => (found >= 0 ? found : headers.indexOf(alias)),
+      -1
+    );
+  }
 
-    let obj = {};
+  const cell = (cells, field) =>
+    col[field] >= 0 ? (cells[col[field]] || "").trim() : "";
 
-    headers.forEach((header, index) => {
-      obj[header] = (cells[index] || "").trim();
-    });
-
-    return {
-      sku: obj.sku || "",
-      name: obj.name || "",
-      variant: obj.variant || "",
-      price: Number(obj.price || 0),
-      stock: Number(obj.stock || 0),
-      image: obj.image || "",
-      description: obj.description || "",
-      category: obj.category || obj.catergory || "Uncategorized"
-    };
-
-  });
+  return rows.slice(1)
+    .map(cells => ({
+      sku: cell(cells, "sku"),
+      name: cell(cells, "name"),
+      variant: cell(cells, "variant"),
+      price: Number(cell(cells, "price") || 0),
+      stock: Number(cell(cells, "stock") || 0),
+      image: cell(cells, "image"),
+      description: cell(cells, "description"),
+      category: cell(cells, "category") || "Uncategorized"
+    }))
+    // A row with no SKU can't be added to a cart or found at checkout.
+    .filter(product => product.sku);
 
 }
 
@@ -185,7 +205,9 @@ function displayProducts(products) {
     div.className = "product-card";
 
     div.innerHTML = `
-      <img src="${escapeHtml(product.image)}" alt="${escapeHtml(displayName(product))}">
+      ${product.image
+        ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(displayName(product))}">`
+        : `<div class="product-image-placeholder" aria-hidden="true"></div>`}
       <h3>${escapeHtml(product.name)}</h3>
       ${product.variant
         ? `<p class="variant">${escapeHtml(product.variant)}</p>`

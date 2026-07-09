@@ -109,6 +109,22 @@ nav a:hover {
     margin-bottom: 15px;
 }
 
+/* Stands in for products whose sheet row has no image, so cards keep their
+   height instead of collapsing around a broken <img>. */
+.product-image-placeholder {
+    width: 100%;
+    height: 180px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    background: repeating-linear-gradient(
+        45deg,
+        #f2f2f2,
+        #f2f2f2 10px,
+        #ebebeb 10px,
+        #ebebeb 20px
+    );
+}
+
 .product-card h3 {
     margin-bottom: 10px;
 }
