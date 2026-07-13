@@ -101,10 +101,14 @@ nav a:hover {
     text-align: center;
 }
 
+/* `contain`, not `cover`: photos come in at whatever aspect ratio the supplier
+   shot them, and cover would crop the ends off a long burr set. The whole
+   product stays visible; the white letterbox blends into the card. */
 .product-card img {
     width: 100%;
     height: 180px;
-    object-fit: cover;
+    object-fit: contain;
+    background: white;
     border-radius: 8px;
     margin-bottom: 15px;
 }
@@ -481,8 +485,9 @@ nav a:hover {
 .product-modal-box img,
 .product-modal-box .product-image-placeholder {
     width: 100%;
-    height: 240px;
-    object-fit: cover;
+    height: 260px;
+    object-fit: contain;
+    background: white;
     border-radius: 8px;
     margin-bottom: 15px;
 }
