@@ -204,34 +204,153 @@ function displayProducts(products) {
     const div = document.createElement("div");
     div.className = "product-card";
 
+    // The whole card opens the detail view; the button below stops the click
+    // from bubbling so "Add to Cart" doesn't also open the modal.
+    div.tabIndex = 0;
+    div.setAttribute("role", "button");
+    div.addEventListener("click", () => openProductModal(product));
+    div.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openProductModal(product);
+      }
+    });
+
     div.innerHTML = `
-      ${product.image
-        ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(displayName(product))}">`
-        : `<div class="product-image-placeholder" aria-hidden="true"></div>`}
       <h3>${escapeHtml(product.name)}</h3>
       ${product.variant
         ? `<p class="variant">${escapeHtml(product.variant)}</p>`
         : ""}
-      <p>${escapeHtml(product.description)}</p>
       <p><strong>$${product.price}</strong></p>
     `;
 
-    const btn = document.createElement("button");
-    btn.className = "add-to-cart-btn";
-
-    if (product.stock <= 0) {
-      btn.textContent = "Sold out";
-      btn.disabled = true;
-    } else {
-      btn.textContent = "Add to Cart";
-      btn.addEventListener("click", () => addToCart(product));
-    }
-
-    div.appendChild(btn);
+    div.prepend(makeProductImage(product));
+    div.appendChild(makeAddToCartButton(product));
     container.appendChild(div);
 
   });
 }
+
+// ===========================
+// PRODUCT IMAGE
+// ===========================
+
+// A row's `image` cell wins when it has one. Otherwise fall back to a photo
+// committed to images/ and named after the SKU (see images/README.md), so the
+// sheet doesn't have to carry a path for every product.
+function imageSources(product) {
+
+  if (product.image) return [product.image];
+  if (!product.sku) return [];
+
+  const base = `images/${product.sku.trim().toLowerCase()}`;
+  return [`${base}.jpg`, `${base}.png`, `${base}.webp`];
+}
+
+function makePlaceholder() {
+  const div = document.createElement("div");
+  div.className = "product-image-placeholder";
+  div.setAttribute("aria-hidden", "true");
+  return div;
+}
+
+function makeProductImage(product) {
+
+  const sources = imageSources(product);
+  if (sources.length === 0) return makePlaceholder();
+
+  const img = document.createElement("img");
+  img.alt = displayName(product);
+
+  // Try each candidate in turn; when none of them load (no photo committed
+  // yet, or a dead URL in the sheet), swap in the placeholder rather than
+  // leaving a broken-image icon on the card.
+  let next = 0;
+  img.addEventListener("error", () => {
+    if (next < sources.length) {
+      img.src = sources[next++];
+    } else {
+      img.replaceWith(makePlaceholder());
+    }
+  });
+
+  img.src = sources[next++];
+  return img;
+}
+
+function makeAddToCartButton(product) {
+
+  const btn = document.createElement("button");
+  btn.className = "add-to-cart-btn";
+
+  if (product.stock <= 0) {
+    btn.textContent = "Sold out";
+    btn.disabled = true;
+  } else {
+    btn.textContent = "Add to Cart";
+    btn.addEventListener("click", event => {
+      event.stopPropagation();
+      addToCart(product);
+    });
+  }
+
+  return btn;
+}
+
+// ===========================
+// PRODUCT DETAIL MODAL
+// ===========================
+
+function openProductModal(product) {
+
+  const modal = document.getElementById("product-modal");
+  const content = document.getElementById("product-modal-content");
+  if (!modal || !content) return;
+
+  content.innerHTML = `
+    <h2 id="product-modal-name">${escapeHtml(product.name)}</h2>
+    ${product.variant
+      ? `<p class="variant">${escapeHtml(product.variant)}</p>`
+      : ""}
+    <p class="product-modal-description">${
+      product.description
+        ? escapeHtml(product.description)
+        : "No description available."
+    }</p>
+    <p class="product-modal-price"><strong>$${product.price}</strong></p>
+  `;
+
+  content.prepend(makeProductImage(product));
+  content.appendChild(makeAddToCartButton(product));
+
+  modal.hidden = false;
+  modal.querySelector(".product-modal-close")?.focus();
+}
+
+function closeProductModal() {
+  const modal = document.getElementById("product-modal");
+  if (modal) modal.hidden = true;
+}
+
+function setupModal() {
+
+  const modal = document.getElementById("product-modal");
+  if (!modal) return;
+
+  // Click the backdrop (but not the box itself) to dismiss.
+  modal.addEventListener("click", event => {
+    if (event.target === modal) closeProductModal();
+  });
+
+  modal.querySelector(".product-modal-close")
+    ?.addEventListener("click", closeProductModal);
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeProductModal();
+  });
+}
+
+setupModal();
 // ===========================
 // CATEGORY DROPDOWN
 // ===========================
