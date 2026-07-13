@@ -401,35 +401,146 @@ function setupModal() {
 
 setupModal();
 // ===========================
-// CATEGORY DROPDOWN
+// CATEGORY MENU
 // ===========================
+
+// Groups the flat `category` column from the sheet into a menu with submenus.
+// A parent is not a value in the sheet — picking "Tools" shows everything in
+// any of its children. Categories that appear in the sheet but in no group
+// here still show up, as top-level items; nothing gets hidden by omission.
+const CATEGORY_GROUPS = {
+  Tools: ["Dremel", "Misc"]
+};
+
+let selectedCategory = "All";
+
+function categoryTree(products) {
+
+  const present = new Set(products.map(product => product.category).filter(Boolean));
+  const tree = [];
+  const grouped = new Set();
+
+  for (const parent in CATEGORY_GROUPS) {
+
+    const children = CATEGORY_GROUPS[parent].filter(child => present.has(child));
+    if (children.length === 0) continue;   // no products -> no empty submenu
+
+    children.forEach(child => grouped.add(child));
+    tree.push({ label: parent, children });
+  }
+
+  [...present]
+    .filter(category => !grouped.has(category))
+    .sort()
+    .forEach(category => tree.push({ label: category, children: [] }));
+
+  return tree;
+}
+
+// True when the product sits under `category`, directly or as one of its
+// children — so "Tools" matches a Dremel product.
+function inCategory(product, category) {
+
+  if (category === "All") return true;
+  if (product.category === category) return true;
+
+  const children = CATEGORY_GROUPS[category];
+  return Array.isArray(children) && children.includes(product.category);
+}
+
+function makeCategoryItem(label, value) {
+
+  const li = document.createElement("li");
+  li.setAttribute("role", "none");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.setAttribute("role", "menuitem");
+  btn.textContent = label;
+  btn.addEventListener("click", () => selectCategory(value, label));
+
+  li.appendChild(btn);
+  return li;
+}
 
 function populateCategories(products) {
 
-  const categorySelect = document.getElementById("category");
+  const dropdown = document.getElementById("category-dropdown");
+  if (!dropdown) return;
 
-  if (!categorySelect) return;
+  dropdown.innerHTML = "";
+  dropdown.appendChild(makeCategoryItem("All categories", "All"));
 
-  categorySelect.innerHTML = `<option value="All">All</option>`;
+  categoryTree(products).forEach(node => {
 
-  const categories = [
-    ...new Set(products.map(product => product.category))
-  ]
-    .filter(Boolean)
-    .sort();
+    if (node.children.length === 0) {
+      dropdown.appendChild(makeCategoryItem(node.label, node.label));
+      return;
+    }
 
-  categories.forEach(category => {
+    // Parent: selectable itself (everything under it), and opens a submenu.
+    const li = makeCategoryItem(node.label, node.label);
+    li.className = "has-submenu";
+    li.querySelector("button").insertAdjacentHTML(
+      "beforeend",
+      ` <span class="chevron" aria-hidden="true">›</span>`
+    );
 
-    const option = document.createElement("option");
+    const submenu = document.createElement("ul");
+    submenu.className = "category-submenu";
+    submenu.setAttribute("role", "menu");
 
-    option.value = category;
-    option.textContent = category;
+    node.children.forEach(child => {
+      submenu.appendChild(makeCategoryItem(child, child));
+    });
 
-    categorySelect.appendChild(option);
+    li.appendChild(submenu);
+    dropdown.appendChild(li);
+  });
+}
 
+function selectCategory(value, label) {
+
+  selectedCategory = value;
+
+  const labelEl = document.getElementById("category-label");
+  if (labelEl) labelEl.textContent = label;
+
+  closeCategoryMenu();
+  filterProducts();
+}
+
+function openCategoryMenu() {
+  document.getElementById("category-menu")?.classList.add("open");
+  document.getElementById("category-trigger")?.setAttribute("aria-expanded", "true");
+}
+
+function closeCategoryMenu() {
+  document.getElementById("category-menu")?.classList.remove("open");
+  document.getElementById("category-trigger")?.setAttribute("aria-expanded", "false");
+}
+
+function setupCategoryMenu() {
+
+  const menu = document.getElementById("category-menu");
+  const trigger = document.getElementById("category-trigger");
+  if (!menu || !trigger) return;
+
+  trigger.addEventListener("click", event => {
+    event.stopPropagation();
+    menu.classList.contains("open") ? closeCategoryMenu() : openCategoryMenu();
   });
 
+  document.addEventListener("click", event => {
+    if (!menu.contains(event.target)) closeCategoryMenu();
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeCategoryMenu();
+  });
 }
+
+setupCategoryMenu();
 
 // ===========================
 // SEARCH + FILTER
@@ -440,9 +551,6 @@ function filterProducts() {
   const search =
     document.getElementById("search")?.value.toLowerCase() || "";
 
-  const category =
-    document.getElementById("category")?.value || "All";
-
   const filtered = allProducts.filter(product => {
 
     const matchesSearch =
@@ -451,11 +559,7 @@ function filterProducts() {
       product.description.toLowerCase().includes(search) ||
       product.sku.toLowerCase().includes(search);
 
-    const matchesCategory =
-      category === "All" ||
-      product.category === category;
-
-    return matchesSearch && matchesCategory;
+    return matchesSearch && inCategory(product, selectedCategory);
 
   });
 
@@ -470,14 +574,9 @@ function filterProducts() {
 function setupListeners() {
 
   const searchBox = document.getElementById("search");
-  const categoryBox = document.getElementById("category");
 
   if (searchBox) {
     searchBox.addEventListener("input", filterProducts);
-  }
-
-  if (categoryBox) {
-    categoryBox.addEventListener("change", filterProducts);
   }
 
 }

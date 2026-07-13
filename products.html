@@ -26,9 +26,15 @@
 
     <div class="filter-bar">
         <input type="text" id="search" placeholder="Search products…">
-        <select id="category">
-            <option value="All">All</option>
-        </select>
+
+        <div class="category-menu" id="category-menu">
+            <button type="button" id="category-trigger" class="category-trigger"
+                    aria-haspopup="true" aria-expanded="false">
+                <span id="category-label">All categories</span>
+                <span class="chevron" aria-hidden="true">▾</span>
+            </button>
+            <ul id="category-dropdown" class="category-dropdown" role="menu"></ul>
+        </div>
     </div>
 
     <div id="product-list"></div>

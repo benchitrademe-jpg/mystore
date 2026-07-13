@@ -357,6 +357,135 @@ nav a:hover {
 }
 
 /* ===========================
+   CATEGORY MENU (CASCADING)
+=========================== */
+
+.category-menu {
+    position: relative;
+}
+
+.category-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    min-width: 190px;
+    padding: 12px 16px;
+
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+
+    font-size: 16px;
+    color: #333;
+    cursor: pointer;
+}
+
+.category-trigger:hover,
+.category-menu.open .category-trigger {
+    border-color: #3aa7ff;
+}
+
+.category-trigger .chevron {
+    margin-left: auto;
+    color: #888;
+}
+
+.category-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 500;
+
+    min-width: 190px;
+    padding: 6px;
+    margin: 0;
+
+    list-style: none;
+    text-align: left;
+
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+
+.category-menu.open .category-dropdown {
+    display: block;
+}
+
+.category-dropdown button,
+.category-submenu button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+
+    padding: 10px 12px;
+
+    background: none;
+    border: none;
+    border-radius: 8px;
+
+    font-size: 15px;
+    color: #333;
+    text-align: left;
+    cursor: pointer;
+}
+
+.category-dropdown button:hover,
+.category-submenu button:hover,
+.category-dropdown button:focus-visible,
+.category-submenu button:focus-visible {
+    background: #eef6ff;
+    color: #1c6fb0;
+    outline: none;
+}
+
+.category-dropdown .chevron {
+    margin-left: auto;
+    color: #aaa;
+}
+
+/* The cascade: a parent's submenu flies out to its right on hover or keyboard
+   focus. focus-within is what makes it reachable by tabbing, not just a mouse. */
+.category-submenu {
+    display: none;
+    position: absolute;
+    top: -6px;
+    left: 100%;
+
+    min-width: 170px;
+    padding: 6px;
+    margin: 0;
+
+    list-style: none;
+
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+
+.has-submenu {
+    position: relative;
+}
+
+.has-submenu:hover > .category-submenu,
+.has-submenu:focus-within > .category-submenu {
+    display: block;
+}
+
+/* On a phone there's no room to fly out sideways, so the submenu just nests
+   underneath its parent, indented. */
+@media (max-width: 600px) {
+    .category-submenu {
+        position: static;
+        display: block;
+        padding: 0 0 0 14px;
+        box-shadow: none;
+    }
+}
+
+/* ===========================
    CART QUANTITY CONTROLS
 =========================== */
 
