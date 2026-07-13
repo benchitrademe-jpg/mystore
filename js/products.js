@@ -225,7 +225,7 @@ function displayProducts(products) {
     `;
 
     div.prepend(makeProductImage(product));
-    div.appendChild(makeAddToCartButton(product));
+    div.appendChild(makeCartControl(product));
     container.appendChild(div);
 
   });
@@ -278,24 +278,73 @@ function makeProductImage(product) {
   return img;
 }
 
-function makeAddToCartButton(product) {
+// Shows "Add to Cart" until the product is in the cart, then a −/qty/+ stepper.
+// Lives inside the clickable card, so every click here is kept from bubbling up
+// and opening the detail modal.
+function makeCartControl(product) {
 
-  const btn = document.createElement("button");
-  btn.className = "add-to-cart-btn";
+  const wrap = document.createElement("div");
+  wrap.className = "cart-control";
+  wrap.dataset.sku = product.sku;
+  wrap.addEventListener("click", event => event.stopPropagation());
+
+  const inCart = getCartQty(product.sku);
 
   if (product.stock <= 0) {
+
+    const btn = document.createElement("button");
+    btn.className = "add-to-cart-btn";
     btn.textContent = "Sold out";
     btn.disabled = true;
-  } else {
+    wrap.appendChild(btn);
+
+  } else if (inCart === 0) {
+
+    const btn = document.createElement("button");
+    btn.className = "add-to-cart-btn";
     btn.textContent = "Add to Cart";
-    btn.addEventListener("click", event => {
-      event.stopPropagation();
-      addToCart(product);
-    });
+    btn.addEventListener("click", () => addToCart(product));
+    wrap.appendChild(btn);
+
+  } else {
+
+    const stepper = document.createElement("div");
+    stepper.className = "qty-controls";
+
+    const minus = document.createElement("button");
+    minus.type = "button";
+    minus.textContent = "−";
+    minus.setAttribute("aria-label", `Remove one ${displayName(product)}`);
+    minus.addEventListener("click", () => changeCartQty(product.sku, -1));
+
+    const count = document.createElement("span");
+    count.textContent = inCart;
+
+    const plus = document.createElement("button");
+    plus.type = "button";
+    plus.textContent = "+";
+    plus.setAttribute("aria-label", `Add one ${displayName(product)}`);
+    // Don't let the card sell more than the sheet says is on the shelf.
+    plus.disabled = inCart >= product.stock;
+    plus.title = plus.disabled ? `Only ${product.stock} in stock` : "";
+    plus.addEventListener("click", () => changeCartQty(product.sku, +1));
+
+    stepper.append(minus, count, plus);
+    wrap.appendChild(stepper);
+
   }
 
-  return btn;
+  return wrap;
 }
+
+// The same SKU can be on screen twice (its card and the open modal), and the
+// cart also moves from the modal — so rebuild every control whenever it changes.
+document.addEventListener("cart-changed", () => {
+  document.querySelectorAll(".cart-control").forEach(control => {
+    const product = allProducts.find(p => p.sku === control.dataset.sku);
+    if (product) control.replaceWith(makeCartControl(product));
+  });
+});
 
 // ===========================
 // PRODUCT DETAIL MODAL
@@ -321,7 +370,7 @@ function openProductModal(product) {
   `;
 
   content.prepend(makeProductImage(product));
-  content.appendChild(makeAddToCartButton(product));
+  content.appendChild(makeCartControl(product));
 
   modal.hidden = false;
   modal.querySelector(".product-modal-close")?.focus();

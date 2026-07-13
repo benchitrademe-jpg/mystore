@@ -31,6 +31,43 @@ function updateCartCount() {
 }
 
 // ===========================
+// CART CHANGED
+// ===========================
+// The products page swaps a card's "Add to Cart" button for a quantity stepper
+// once the item is in the cart, so it needs to know when the cart moves —
+// including from the other card showing the same SKU, or from the modal.
+function cartChanged() {
+    saveCart();
+    updateCartCount();
+    document.dispatchEvent(new CustomEvent("cart-changed"));
+}
+
+// ===========================
+// CART QUANTITY (BY SKU)
+// ===========================
+window.getCartQty = function(sku) {
+    const item = cart.find(item => item.sku === sku);
+    return item ? item.quantity : 0;
+};
+
+// Only moves an item already in the cart — use addToCart for the first one,
+// since that's what carries the product's name, price and image.
+window.changeCartQty = function(sku, delta) {
+
+    const index = cart.findIndex(item => item.sku === sku);
+    if (index < 0) return;
+
+    cart[index].quantity += delta;
+
+    if (cart[index].quantity <= 0) {
+        cart.splice(index, 1);
+    }
+
+    cartChanged();
+    renderCart();
+};
+
+// ===========================
 // ADD TO CART
 // ===========================
 window.addToCart = function(product) {
@@ -50,8 +87,7 @@ window.addToCart = function(product) {
         });
     }
 
-    saveCart();
-    updateCartCount();
+    cartChanged();
     showPopup(displayName(product));
 };
 
@@ -91,28 +127,14 @@ function showPopup(name) {
 // INCREASE QUANTITY
 // ===========================
 window.increaseQty = function(index) {
-
-    cart[index].quantity += 1;
-
-    saveCart();
-    renderCart();
-    updateCartCount();
+    changeCartQty(cart[index].sku, +1);
 };
 
 // ===========================
 // DECREASE QUANTITY
 // ===========================
 window.decreaseQty = function(index) {
-
-    cart[index].quantity -= 1;
-
-    if (cart[index].quantity <= 0) {
-        cart.splice(index, 1);
-    }
-
-    saveCart();
-    renderCart();
-    updateCartCount();
+    changeCartQty(cart[index].sku, -1);
 };
 
 // ===========================

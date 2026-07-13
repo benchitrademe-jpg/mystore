@@ -391,6 +391,19 @@ nav a:hover {
     font-weight: bold;
 }
 
+/* Same stepper on a product card, where it replaces "Add to Cart" once the
+   item is in the cart. The button carries its own top margin, so only the
+   stepper needs spacing here. */
+.cart-control .qty-controls {
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.cart-control .qty-controls button:disabled {
+    background: #bbb;
+    cursor: not-allowed;
+}
+
 /* ===========================
    LOADING SPINNER
 =========================== */
