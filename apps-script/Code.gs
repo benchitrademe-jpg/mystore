@@ -27,6 +27,15 @@ var ADMIN_EMAILS = [OWNER_EMAIL];
 // Look at the bottom of your spreadsheet for the exact tab name.
 var PRODUCTS_SHEET = "Sheet1";           // <-- change if your product tab has a different name
 
+// Stock is tracked PER SALES CHANNEL, in two separate columns of the product
+// sheet: `stock` (what the website may sell) and `tm stock` (what Trade Me
+// listings may sell). Splitting them is the whole point — selling the last
+// website unit must not empty the pile a Trade Me listing is still offering.
+// A website order moves `stock`; an imported Trade Me sale moves `tm stock`.
+// See SETUP-TRADEME.md for how to split your numbers across the two.
+var CHANNEL_WEB = "Website";
+var CHANNEL_TRADEME = "Trade Me";
+
 // Orders get logged here. Created automatically if it doesn't exist.
 var ORDERS_SHEET = "Orders";
 
@@ -44,6 +53,33 @@ var BANK_DETAILS = {
   accountNumber: "TODO 00-0000-0000000-00",
   bank: "TODO Bank name"
 };
+
+// -----------------------------------------------------
+// TRADE ME IMPORT
+// -----------------------------------------------------
+// Trade Me emails a "Purchase Complete" confirmation for every sale. Those
+// arrive at benj.chick4@gmail.com and are auto-forwarded to this account
+// (benchi.trademe@gmail.com) — which is the account this script runs as, so
+// GmailApp below can read them. importTradeMeOrders() parses each one and
+// appends it to the SAME Orders sheet the website writes to. The admin page
+// reads only that sheet, so Trade Me sales appear there with no other change.
+// See SETUP-TRADEME.md for the Gmail forwarding + trigger setup.
+
+// The confirmation's From address. Gmail keeps the original From on a
+// forwarded message, so matching on the domain still finds it here.
+var TRADEME_FROM = "trademe.co.nz";
+
+// Gmail labels remember which sale emails have already been imported, so a
+// re-run never logs the same order twice. Both are created automatically.
+var TRADEME_LABEL_DONE = "trademe-imported";
+var TRADEME_LABEL_ERROR = "trademe-error";
+
+// Only look this far back, so the very first run doesn't trawl old mail.
+var TRADEME_SEARCH_DAYS = 45;
+
+// Trade Me orders are logged with this reference prefix — clear to read in the
+// admin page, and impossible to collide with the site's own BENJ-#### refs.
+var TRADEME_REF_PREFIX = "TM-";
 
 // =====================================================
 // WEB APP ENTRY POINTS
@@ -124,7 +160,8 @@ var COLUMN_ALIASES = {
   name: ["name", "product name"],
   variant: ["variant", "version"],
   price: ["price"],
-  stock: ["stock"]
+  stock: ["web stock", "website stock", "stock"],
+  tmStock: ["tm stock", "trade me stock", "trademe stock"]
 };
 
 function columnIndex_(header, aliases) {
@@ -133,6 +170,29 @@ function columnIndex_(header, aliases) {
     if (at >= 0) return at;
   }
   return -1;
+}
+
+// The stock column a given channel spends from.
+//
+// A sheet with no Trade Me column yet falls back to the website column, so
+// nothing breaks before the column is added — that's exactly the old
+// single-shared-number behaviour, which is the safe thing to degrade to.
+function stockColumnFor_(header, channel) {
+  if (channel === CHANNEL_TRADEME) {
+    var tm = columnIndex_(header, COLUMN_ALIASES.tmStock);
+    if (tm >= 0) return tm;
+  }
+  return columnIndex_(header, COLUMN_ALIASES.stock);
+}
+
+// Which channel's stock an order was taken out of — so cancelling it puts the
+// units back where they came from. New rows carry a Channel column; rows
+// logged before that column existed are identified by their TM- reference.
+function channelOf_(channelCell, ref) {
+  var c = String(channelCell || "").trim().toLowerCase();
+  if (c) return c.indexOf("trade") >= 0 ? CHANNEL_TRADEME : CHANNEL_WEB;
+
+  return String(ref).indexOf(TRADEME_REF_PREFIX) === 0 ? CHANNEL_TRADEME : CHANNEL_WEB;
 }
 
 function doPost(e) {
@@ -172,7 +232,9 @@ function doPost(e) {
     var data = pSheet.getDataRange().getValues();
     var header = data[0].map(function (h) { return String(h).trim().toLowerCase(); });
     var skuCol = columnIndex_(header, COLUMN_ALIASES.sku);
-    var stockCol = columnIndex_(header, COLUMN_ALIASES.stock);
+    // The website spends WEBSITE stock only. Whatever is set aside for Trade
+    // Me is invisible here, so the site can sell out while listings stay live.
+    var stockCol = stockColumnFor_(header, CHANNEL_WEB);
     var priceCol = columnIndex_(header, COLUMN_ALIASES.price);
     var nameCol = columnIndex_(header, COLUMN_ALIASES.name);
     // Optional: sheets with no variant column still work (-1), so this is
@@ -245,6 +307,7 @@ function doPost(e) {
       "Timestamp": new Date(),
       "Reference": ref,
       "Status": "PENDING",
+      "Channel": CHANNEL_WEB,
       "Name": customer.name,
       "Email": customer.email,
       "Phone": customer.phone || "",
@@ -305,7 +368,7 @@ function productName_(row, nameCol, variantCol) {
 }
 
 var ORDER_HEADERS = [
-  "Timestamp", "Reference", "Status",
+  "Timestamp", "Reference", "Status", "Channel",
   "Name", "Email", "Phone", "Note",
   "Address", "Delivery",
   "Items", "Subtotal", "Postage", "Total",
@@ -328,9 +391,10 @@ function getOrdersSheet_(ss) {
   }
 
   // An Orders sheet created by an older version of this script has no
-  // Address / Delivery / Subtotal / Postage columns. Add whichever are
-  // missing to the end of the header row, so existing orders keep their
-  // columns and new ones get logged in full.
+  // Address / Delivery / Subtotal / Postage / Channel columns. Add whichever
+  // are missing to the end of the header row, so existing orders keep their
+  // columns and new ones get logged in full. (Rows already on the sheet keep
+  // a blank Channel; channelOf_ reads their reference prefix instead.)
   var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
     .map(function (h) { return String(h).trim(); });
 
@@ -419,8 +483,9 @@ function sendEmails_(ref, customer, lineItems, subtotal, postage, total) {
     "Deliver to (" + (customer.deliveryType || "") + "):\n" + address + "\n\n" +
     lines + "\n\n" +
     totals + "\n\n" +
-    "Stock has been reserved. In the Orders sheet, use the \"Orders\" menu to\n" +
-    "mark it PAID once the transfer lands, or cancel it (which restores stock).";
+    "Website stock has been reserved (Trade Me stock is untouched). In the\n" +
+    "Orders sheet, use the \"Orders\" menu to mark it PAID once the transfer\n" +
+    "lands, or cancel it (which puts the units back into website stock).";
 
   MailApp.sendEmail(OWNER_EMAIL, "New order " + ref, ownerBody);
 }
@@ -434,6 +499,9 @@ function onOpen() {
     .createMenu("Orders")
     .addItem("Mark selected order PAID", "markSelectedPaid")
     .addItem("Cancel selected order (restore stock)", "cancelSelectedOrder")
+    .addSeparator()
+    .addItem("Import Trade Me sales now", "importTradeMeOrdersMenu")
+    .addItem("Set up Trade Me auto-import", "installTradeMeAutoImport")
     .addToUi();
 }
 
@@ -529,17 +597,18 @@ function ordersTable_(ss) {
   };
 }
 
-// Puts reserved stock back on the shelf. Only ever called for an order that
-// is still PENDING or PAID — never for one already CANCELLED, or the stock
-// would be credited twice.
-function restoreStock_(ss, items) {
+// Puts reserved stock back on the shelf — into the SAME channel's column it
+// was taken from, so cancelling a Trade Me sale can't quietly hand its units
+// to the website. Only ever called for an order that is still PENDING or PAID,
+// never for one already CANCELLED, or the stock would be credited twice.
+function restoreStock_(ss, items, channel) {
   var pSheet = ss.getSheetByName(PRODUCTS_SHEET);
   if (!pSheet) throw new Error("Product sheet not found.");
 
   var data = pSheet.getDataRange().getValues();
   var ph = data[0].map(function (h) { return String(h).trim().toLowerCase(); });
-  var skuCol = ph.indexOf("sku");
-  var stockCol = ph.indexOf("stock");
+  var skuCol = columnIndex_(ph, COLUMN_ALIASES.sku);
+  var stockCol = stockColumnFor_(ph, channel);
   if (skuCol < 0 || stockCol < 0) throw new Error("Product columns not found.");
 
   var rowBySku = {};
@@ -566,7 +635,7 @@ function cancelOrder_(ss, ref) {
   }
 
   var items = JSON.parse(t.get(row, "ItemsJSON") || "[]");
-  restoreStock_(ss, items);
+  restoreStock_(ss, items, channelOf_(t.get(row, "Channel"), ref));
   t.set(row, "Status", "CANCELLED");
 }
 
@@ -723,4 +792,309 @@ function adminGetOrder_(t, row) {
   o.Tracking = String(o.Tracking || "").trim();
 
   return o;
+}
+
+// =====================================================
+// TRADE ME IMPORT
+// (see the CONFIG block near the top and SETUP-TRADEME.md)
+// =====================================================
+
+// Menu wrapper: runs the import and shows the result. Called from the
+// spreadsheet's "Orders" menu; the same importTradeMeOrders() is also what the
+// 15-minute time trigger runs.
+function importTradeMeOrdersMenu() {
+  SpreadsheetApp.getUi().alert(importTradeMeOrders());
+}
+
+// Installs (once) the time trigger that imports automatically. Safe to run
+// again — it won't stack a second trigger.
+function installTradeMeAutoImport() {
+  var ui = SpreadsheetApp.getUi();
+
+  var already = ScriptApp.getProjectTriggers().some(function (tr) {
+    return tr.getHandlerFunction() === "importTradeMeOrders";
+  });
+  if (already) {
+    ui.alert("Trade Me auto-import is already on (runs every 15 minutes).");
+    return;
+  }
+
+  ScriptApp.newTrigger("importTradeMeOrders").timeBased().everyMinutes(15).create();
+  ui.alert(
+    "Done — Trade Me sales will import automatically every 15 minutes.\n\n" +
+    "You can also run it any time from Orders -> Import Trade Me sales now."
+  );
+}
+
+// Scans Gmail for un-imported Trade Me sale confirmations, logs each to the
+// Orders sheet, and labels the email so it's never imported twice. Returns a
+// one-line summary. Never throws for one bad email — that message is labelled
+// "trademe-error" and left for a look, and the rest still import.
+function importTradeMeOrders() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  var query = 'subject:"Purchase Complete" "' + TRADEME_FROM + '"' +
+    ' -label:' + TRADEME_LABEL_DONE +
+    ' -label:' + TRADEME_LABEL_ERROR +
+    ' newer_than:' + TRADEME_SEARCH_DAYS + 'd';
+
+  var threads = GmailApp.search(query, 0, 50);
+  var doneLabel = getOrCreateLabel_(TRADEME_LABEL_DONE);
+  var errorLabel = getOrCreateLabel_(TRADEME_LABEL_ERROR);
+
+  var imported = 0, skipped = 0, failed = 0;
+
+  for (var t = 0; t < threads.length; t++) {
+    var thread = threads[t];
+    var messages = thread.getMessages();
+    var threadFailed = false;
+
+    for (var m = 0; m < messages.length; m++) {
+      var msg = messages[m];
+      // A thread can also hold replies; only the sale confirmations get parsed.
+      if (msg.getSubject().indexOf("Purchase Complete") < 0) continue;
+
+      try {
+        if (logTradeMeOrder_(ss, parseTradeMeEmail_(msg)) === "imported") {
+          imported++;
+        } else {
+          skipped++;   // already on the sheet (label was lost, or a re-run)
+        }
+      } catch (err) {
+        failed++;
+        threadFailed = true;
+        console.error('Trade Me import failed for "' + msg.getSubject() + '": ' + err.message);
+      }
+    }
+
+    // Label the whole thread so the next run skips it. An unreadable message
+    // gets the error label (flagged, not retried forever); everything else the
+    // done label. Either way it's marked, so a run never re-scans it.
+    thread.addLabel(threadFailed ? errorLabel : doneLabel);
+  }
+
+  var summary = "Trade Me import: " + imported + " new, " + skipped +
+    " already logged, " + failed + " could not be read.";
+  console.log(summary);
+  return summary;
+}
+
+// Appends one parsed Trade Me sale to the Orders sheet as a PAID order (the
+// buyer has already paid through Trade Me), then best-effort decrements site
+// stock. Returns "imported", or "skipped" if the reference is already logged.
+function logTradeMeOrder_(ss, p) {
+  var ref = TRADEME_REF_PREFIX + p.reference;
+
+  // Idempotent even if the Gmail label was lost: never append a reference the
+  // Orders sheet already holds.
+  if (orderRefExists_(ss, ref)) return "skipped";
+
+  var oSheet = getOrdersSheet_(ss);
+
+  var itemsHuman = p.qty + " x " + p.item + " ($" + p.price.toFixed(2) + ")";
+  var itemsJson = JSON.stringify([{ sku: p.sku, qty: p.qty }]);
+
+  var note = "Trade Me sale" +
+    (p.buyer ? " — buyer " + p.buyer : "") +
+    (p.listing ? ". Listing #" + p.listing : "");
+
+  appendOrderRow_(oSheet, {
+    "Timestamp": p.date,
+    "Reference": ref,
+    "Status": "PAID",                       // already paid via Trade Me / Ping
+    "Channel": CHANNEL_TRADEME,
+    "Name": p.name || p.buyer || "Trade Me buyer",
+    "Email": p.email || "",
+    "Phone": p.phone || "",
+    "Note": note,
+    "Address": p.address,
+    "Delivery": p.shippingMethod || "Trade Me",
+    "Items": itemsHuman,
+    "Subtotal": p.subtotal,
+    "Postage": p.shipping,
+    "Total": p.total,
+    "ItemsJSON": itemsJson
+  });
+
+  // Take the units out of the TRADE ME column — the website's own number is
+  // left alone, which is the point of splitting them. Best-effort: a Trade Me
+  // SKU with no match on the sheet just leaves stock untouched, and a failure
+  // here never voids the order.
+  if (p.sku) {
+    try {
+      decrementStockBySku_(ss, p.sku, p.qty, CHANNEL_TRADEME);
+    } catch (err) {
+      console.error("Trade Me stock update failed for SKU " + p.sku + ": " + err.message);
+    }
+  }
+
+  return "imported";
+}
+
+// True if the Orders sheet already has a row with this reference.
+function orderRefExists_(ss, ref) {
+  var sh = getOrdersSheet_(ss);
+  if (sh.getLastRow() < 2) return false;
+
+  var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
+    .map(function (h) { return String(h).trim(); });
+  var refCol = header.indexOf("Reference");
+  if (refCol < 0) return false;
+
+  var refs = sh.getRange(2, refCol + 1, sh.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < refs.length; i++) {
+    if (String(refs[i][0]).trim() === ref) return true;
+  }
+  return false;
+}
+
+// Subtracts qty from the matching SKU's stock for one channel. Returns false
+// (not an error) if no row matches, so a Trade Me-only listing doesn't break
+// the import. Nothing clamps at zero: a Trade Me listing that oversells its
+// share shows as a negative there, which is a visible flag to rebalance rather
+// than a silent loss — mirroring restoreStock_ in reverse.
+function decrementStockBySku_(ss, sku, qty, channel) {
+  var pSheet = ss.getSheetByName(PRODUCTS_SHEET);
+  if (!pSheet) throw new Error("Product sheet not found.");
+
+  var data = pSheet.getDataRange().getValues();
+  var ph = data[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var skuCol = columnIndex_(ph, COLUMN_ALIASES.sku);
+  var stockCol = stockColumnFor_(ph, channel);
+  if (skuCol < 0 || stockCol < 0) throw new Error("Product columns not found.");
+
+  var want = String(sku).trim().toLowerCase();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][skuCol]).trim().toLowerCase() === want) {
+      var cur = Number(data[i][stockCol]) || 0;
+      pSheet.getRange(i + 1, stockCol + 1).setValue(cur - qty);
+      return true;
+    }
+  }
+  return false;
+}
+
+// Pulls the fields we log out of one sale-confirmation email. Reads the plain
+// text body, so it doesn't depend on Trade Me's HTML layout. Throws if the
+// essentials (reference, item, total) aren't found, so the caller can flag it.
+function parseTradeMeEmail_(message) {
+  // Trade Me's HTML uses non-breaking spaces; flatten them to plain spaces
+  // so the amount and label regexes below still match.
+  var body = String(message.getPlainBody() || "").replace(/\u00A0/g, " ");
+
+  var reference = matchOne_(body, /Reference\s*#\s*(P\d+)/i);
+  if (!reference) throw new Error("no Trade Me reference found");
+
+  // "...your product Dremel Burr Set! (listing #:..." is the most reliable
+  // place the name appears; fall back to the "Item" row.
+  var item = matchOne_(body, /product\s+(.+?)!\s*\(listing/i) ||
+             matchOne_(body, /\bItem\b[:\s]+(.+)/i);
+  if (!item) throw new Error("no item name found");
+
+  var total = money_(matchOne_(body, /Total\s*paid[:\s]*\$?\s*([\d,]+\.\d{2})/i));
+  if (!total) throw new Error("no total found");
+
+  var price = money_(matchOne_(body, /\bPrice\b[:\s]*\$?\s*([\d,]+\.\d{2})/i));
+  var subtotal = money_(matchOne_(body, /\bSubtotal\b[:\s]*\$?\s*([\d,]+\.\d{2})/i));
+  // The "$" is required so "Shipping method ..." can't match as the cost.
+  var shipping = money_(matchOne_(body, /\bShipping\b[:\s]*\$\s*([\d,]+\.\d{2})/i));
+
+  var qty = Number(matchOne_(body, /\b(?:Quantity|Qty)\b[:\s]+(\d+)/i)) || 1;
+
+  // Keep the row's maths self-consistent if a line was missing.
+  if (!subtotal) subtotal = price * qty;
+  if (!price && qty) price = subtotal / qty;
+
+  var sku = matchOne_(body, /\bSKU\b[:\s]+([^\n\r<]+)/i).trim();
+  var listing = matchOne_(body, /listing\s*#?:?\s*(\d+)/i);
+
+  // The "Buyer" label is capitalised and the username trails into a <profile
+  // link>: "Buyer smoky5 <https://...>". Match case-sensitively so it can't
+  // catch the lower-case "A buyer has paid..." sentence higher up, and stop at
+  // "<" or "(" to drop the link and the (rating) that follows.
+  var buyer = matchOne_(body, /\bBuyer\s+([^\s<(]+)/).trim();
+
+  // Buyer email: the first address in the body that's neither Trade Me's nor
+  // the owner's. The buyer's own address appears twice (plain, then as a
+  // mailto link); either is fine. Reply-To is a last resort.
+  var email = "";
+  var found = body.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g) || [];
+  for (var e = 0; e < found.length; e++) {
+    var lo = found[e].toLowerCase();
+    if (lo.indexOf("trademe") >= 0) continue;
+    if (lo === String(OWNER_EMAIL).toLowerCase()) continue;
+    email = found[e];
+    break;
+  }
+  if (!email) {
+    var reply = String(message.getReplyTo() || "").match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/);
+    if (reply && reply[0].toLowerCase().indexOf("trademe") < 0) email = reply[0];
+  }
+
+  var shippingMethod = matchOne_(body, /Shipping\s*method[:\s]+([^\n\r]+)/i).trim();
+
+  // Delivery address. "delivery address" is a minefield: it's also in the intro
+  // sentence ("...shipped to the delivery address below") AND inside a footer
+  // link (".../DeliveryAddress.aspx?asid=..."). So scope to the "Shipping
+  // details" section, and require a real space between the words — which the
+  // space-less "DeliveryAddress" URL doesn't have. Then read lines until the
+  // footer or a "Phone number" line (captured separately), skipping the <link>
+  // and [image:] lines the plain-text email leaves in.
+  var shipAt = body.search(/Shipping\s*details/i);
+  var scope = shipAt >= 0 ? body.slice(shipAt) : body;
+  var addrParts = scope.split(/Delivery\s+address[:\s]+/i);
+  // After "Shipping details" the first segment is the real address; without
+  // that anchor, fall back to the last "Delivery address" occurrence.
+  var addrBlock = shipAt >= 0
+    ? (addrParts.length > 1 ? addrParts[1] : "")
+    : addrParts[addrParts.length - 1];
+
+  var addrLines = [];
+  var phone = "";
+  var raw = addrBlock.split(/\r?\n/);
+  for (var a = 0; a < raw.length; a++) {
+    var ln = raw[a].trim();
+    if (!ln) { if (addrLines.length) break; else continue; }   // blank ends it
+    if (ln.charAt(0) === "<" || /^\[image:/i.test(ln)) continue;
+
+    var pm = ln.match(/Phone\s*number[:\s]*(.+)/i);
+    if (pm) { phone = pm[1].trim(); break; }                    // phone ends it
+
+    if (/^(Book\s*(a\s*)?courier|Print\s*packing|You\s*can\s*check|Thanks\s*for\s*selling|©)/i.test(ln)) break;
+    addrLines.push(ln);
+  }
+
+  return {
+    reference: reference,
+    item: item.trim(),
+    sku: sku,
+    listing: listing,
+    buyer: buyer,
+    email: email,
+    phone: phone,
+    qty: qty,
+    price: price,
+    subtotal: subtotal,
+    shipping: shipping,
+    total: total,
+    shippingMethod: shippingMethod,
+    name: addrLines.length ? addrLines[0] : (buyer || ""),   // first line is the recipient
+    address: addrLines.join(", "),
+    date: message.getDate()
+  };
+}
+
+function getOrCreateLabel_(name) {
+  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
+}
+
+// First capture group of the first match, or "" — so callers can chain and
+// trim without null-checking every field.
+function matchOne_(text, re) {
+  var m = String(text).match(re);
+  return m ? m[1] : "";
+}
+
+function money_(str) {
+  return Number(String(str || "").replace(/,/g, "")) || 0;
 }
